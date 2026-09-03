@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>策略回測</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f1620'/%3E%3Cpolyline points='2,11 6,7 9,10 14,4' fill='none' stroke='%234aa8ff' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0a0e14;--panel:#0f1620;--panel2:#141d29;--line:#1e2a38;--fg:#e6edf3;--dim:#8b98a8;
+  --up:#ff5a5a;--down:#3fd07f;--accent:#4aa8ff;--muted:#6b7888;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Noto Sans TC",system-ui,sans-serif;font-size:14px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 12px}
+.titlerow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand{font-size:19px;font-weight:800}
+.subtitle{font-size:12px;color:var(--dim)}
+.spacer{flex:1}
+.hublink{font-size:12px;color:var(--accent);text-decoration:none;border:1px solid var(--line);
+  background:var(--panel2);border-radius:8px;padding:4px 10px;white-space:nowrap}
+.hublink:active{background:#1c2836}
+main{padding:8px 12px 30px;max-width:960px;margin:0 auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:8px 0}
+.disclaim{font-size:12px;color:var(--dim)}
+.crumb{font-size:13px;color:var(--dim);margin:14px 0 4px}
+.crumb b{color:var(--fg);font-size:14px}
+.note{font-size:11px;color:var(--dim);margin:2px 0 6px}
+.mkrow{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
+.mkrow b{font-size:17px}
+.statwrap{display:flex;flex-wrap:wrap;gap:8px}
+.statcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;flex:1;min-width:260px;margin:0}
+.statcard .h{font-size:12px;color:var(--dim);margin-bottom:4px}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:8px;-webkit-overflow-scrolling:touch}
+.scrollbox{max-height:62vh}
+table{border-collapse:collapse;width:100%;white-space:nowrap}
+th,td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--line);font-size:13px}
+th{position:sticky;top:0;background:var(--panel2);color:var(--dim);font-weight:500;font-size:11px}
+td.l,th.l{text-align:left}
+tbody tr:nth-child(odd) td{background:#0c121a}
+tbody tr:last-child td{border-bottom:none}
+.up{color:var(--up)}.down{color:var(--down)}.mut{color:var(--muted)}
+.db{background:#4a2430;color:#ff8f8f;border-radius:4px;padding:0 4px}
+.loading{color:var(--dim);padding:20px;text-align:center}
+.chartcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0}
+.chartcard svg{display:block;width:100%;height:auto}
+footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-top:1px solid var(--line);margin-top:20px}
+</style>
+</head>
+<body>
+<header>
+  <div class="titlerow">
+    <span class="brand">策略回測</span>
+    <span class="subtitle">小台(MTX)日內策略 · Playbook v3 · 每日前推對帳</span>
+    <span class="spacer"></span>
+    <a class="hublink" href="https://shihpc.github.io/">← 回 Dashboard Hub</a>
+  </div>
+</header>
+<main>
+  <div class="card disclaim">回測與模擬記錄為歷史資料研究、非投資建議；模擬損益未含滑價，實際交易結果會不同。</div>
+
+  <!-- 區塊一：策略參數 -->
+  <section id="sec-params">
+    <div class="crumb"><b>策略參數</b> <span class="mut">Playbook v3（2026-09-03 定版）</span></div>
+    <div class="note">訊號＝前一晚費城半導體指數（^SOX）收盤漲跌幅；美股 T 日訊號對台股 T+1 日操作。</div>
+    <div class="tablewrap"><table>
+      <thead><tr><th class="l">SOX 前收漲跌幅</th><th class="l">動作</th></tr></thead>
+      <tbody>
+        <tr><td class="l">大跌 &lt;−2%</td><td class="l">空手</td></tr>
+        <tr><td class="l">跌 −2%～−1%</td><td class="l">開盤空 → 收盤平</td></tr>
+        <tr><td class="l">小跌 −1%～0%</td><td class="l">空手</td></tr>
+        <tr><td class="l">小漲 0%～1%</td><td class="l">開盤多 → 收盤平</td></tr>
+        <tr><td class="l">漲 1%～2%</td><td class="l">開盤多 → 收盤平</td></tr>
+        <tr><td class="l">大漲 &gt;2%</td><td class="l">10:00 空 → 收盤平</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- 區塊二：回測驗證 -->
+  <section id="sec-backtest">
+    <div class="crumb"><b>回測驗證</b></div>
+    <div class="statwrap">
+      <div class="statcard">
+        <div class="h">歷史段 2005–2022（TAIEX近似、未扣成本）</div>
+        <div class="mkrow">
+          <span>正報酬年 <b>18/18</b></span>
+          <span>年均 <b>+2,972 點</b></span>
+          <span>最差年 <b>+1,326 點</b></span>
+        </div>
+      </div>
+      <div class="statcard">
+        <div class="h">現代段 2023–2026（小台實價、扣成本）</div>
+        <div class="mkrow">
+          <span>正報酬年 <b>4/4</b></span>
+          <span>各年 <b>+773 / +4,848 / +4,446 / +7,371</b></span>
+          <span>週平均 <b>+115 點</b></span>
+          <span>MDD <b>−2,997 點</b></span>
+        </div>
+      </div>
+    </div>
+    <div class="note">完整分析與可重跑腳本見本 repo README 與 scripts/。</div>
+  </section>
+
+  <!-- 區塊三：前推對帳 -->
+  <section id="sec-ledger">
+    <div class="crumb"><b>前推對帳</b> <span class="mut">walkforward ledger（模擬、扣成本口徑同回測）</span></div>
+    <div id="ledger"><div class="loading">載入中…</div></div>
+  </section>
+</main>
+<footer>資料源：FinMind ｜ 僅供研究</footer>
+<script>
+"use strict";
+// ---- 常數 ----
+var MDD_BT = -2997;   // 現代段回測 MDD（點），前推回落低於此值時警示
+
+// ---- 工具 ----
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function fmtN(v){var n=+v;return (v===""||v==null||!isFinite(n))?"—":n.toLocaleString("en-US",{maximumFractionDigits:1});}
+function fmtPnl(v){var n=+v;if(v===""||v==null||!isFinite(n))return"—";
+  return '<span class="'+(n>0?"up":n<0?"down":"mut")+'">'+(n>0?"+":"")+n.toLocaleString("en-US",{maximumFractionDigits:1})+'</span>';}
+function fmtPct(v){var n=+v;return (v===""||v==null||!isFinite(n))?"—":(n>0?"+":"")+(n*100).toFixed(2)+"%";}
+
+// ---- CSV 解析（欄位值不含逗號的簡單格式；動態值渲染一律過 esc()）----
+function parseCsv(t){
+  var lines=String(t||"").trim().split(/\r?\n/).filter(function(l){return l.trim();});
+  if(lines.length<2)return[];
+  var head=lines[0].split(",").map(function(s){return s.trim();});
+  return lines.slice(1).map(function(l){
+    var c=l.split(","),o={};
+    head.forEach(function(h,i){o[h]=(c[i]==null?"":c[i]).trim();});
+    return o;
+  });
+}
+
+// ---- 累積損益折線圖（inline SVG 手繪）----
+function cumChart(rows){
+  // 序列＝起始 0 ＋逐筆 cum_pnl（CSV 時序舊→新）
+  var pts=[0];
+  rows.forEach(function(r){var c=+r.cum_pnl;if(r.cum_pnl!==""&&isFinite(c))pts.push(c);});
+  if(pts.length<2)return"";
+  var W=900,H=220,padL=56,padR=14,padT=14,padB=22;
+  var min=Math.min.apply(null,pts),max=Math.max.apply(null,pts);
+  if(min===max){min-=1;max+=1;}
+  var span=max-min;min-=span*0.08;max+=span*0.08;
+  var iw=W-padL-padR,ih=H-padT-padB;
+  function X(i){return padL+iw*i/(pts.length-1);}
+  function Y(v){return padT+ih*(1-(v-min)/(max-min));}
+  var poly=pts.map(function(v,i){return X(i).toFixed(1)+","+Y(v).toFixed(1);}).join(" ");
+  var s='<svg id="cumchart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="累積損益折線圖" preserveAspectRatio="xMidYMid meet">';
+  // 水平格線＋刻度（min/0/max 附近取 4 條）
+  var ticks=4;
+  for(var i=0;i<=ticks;i++){
+    var v=min+(max-min)*i/ticks,y=Y(v).toFixed(1);
+    s+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#1e2a38" stroke-width="1"/>';
+    s+='<text x="'+(padL-6)+'" y="'+(+y+4)+'" text-anchor="end" font-size="10" fill="#8b98a8">'+Math.round(v).toLocaleString("en-US")+'</text>';
+  }
+  // 零線
+  if(min<0&&max>0){
+    var y0=Y(0).toFixed(1);
+    s+='<line x1="'+padL+'" y1="'+y0+'" x2="'+(W-padR)+'" y2="'+y0+'" stroke="#6b7888" stroke-width="1" stroke-dasharray="4 3"/>';
+  }
+  // 折線
+  s+='<polyline points="'+poly+'" fill="none" stroke="#4aa8ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  // 末點
+  var lx=X(pts.length-1).toFixed(1),ly=Y(pts[pts.length-1]).toFixed(1);
+  s+='<circle cx="'+lx+'" cy="'+ly+'" r="3.5" fill="#4aa8ff"/>';
+  // 橫軸標籤（首/末筆日期）
+  var d0=rows.length?rows[0].date:"",d1=rows.length?rows[rows.length-1].date:"";
+  s+='<text x="'+padL+'" y="'+(H-6)+'" font-size="10" fill="#8b98a8">起始 0</text>';
+  if(d1)s+='<text x="'+(W-padR)+'" y="'+(H-6)+'" text-anchor="end" font-size="10" fill="#8b98a8">'+esc(d1)+'</text>';
+  s+='</svg>';
+  return '<div class="chartcard"><div class="note" style="margin-top:0">累積損益（點，含起始 0'+(d0?"，"+esc(d0)+" 起":"")+'）</div>'+s+'</div>';
+}
+
+// ---- 渲染 ----
+function renderLedger(rows){
+  var el=document.getElementById("ledger");
+  if(!rows.length){el.innerHTML='<div class="loading">尚無記錄</div>';return;}
+  var trades=rows.filter(function(r){return r.pnl_sim!==""&&isFinite(+r.pnl_sim);});
+  var tot=trades.reduce(function(s,r){return s+ +r.pnl_sim;},0);
+  var wins=trades.filter(function(r){return +r.pnl_sim>0;}).length;
+  // 累積與回落：依 CSV 時序（舊→新）掃 cum_pnl，峰值含起始 0
+  var peak=0,cum=0;
+  rows.forEach(function(r){var c=+r.cum_pnl;if(r.cum_pnl!==""&&isFinite(c)){cum=c;if(c>peak)peak=c;}});
+  var dd=cum-peak,ddBad=dd<MDD_BT;
+  var ddTxt=(dd>0?"+":"")+dd.toLocaleString("en-US",{maximumFractionDigits:1});
+  var h='<div class="card" style="font-size:13px"><div class="mkrow">'+
+    '<span>出勤 <b>'+trades.length+'</b> 筆</span>'+
+    '<span>總損益 <b>'+fmtPnl(tot)+'</b> 點</span>'+
+    '<span>勝率 <b>'+(trades.length?Math.round(wins/trades.length*100)+"%":"—")+'</b></span>'+
+    '<span>目前累積 <b>'+fmtPnl(cum)+'</b> 點</span>'+
+    '<span>目前回落 <b>'+(ddBad?'<span class="db">'+ddTxt+' 已超過回測MDD</span>':ddTxt)+'</b> 點</span>'+
+    '</div></div>';
+  h+=cumChart(rows);
+  var cols=[["date","台股日"],["sox_date","SOX日"],["sox_ret","SOX漲跌"],["bucket","級距"],["action","動作"],
+    ["entry_time","進場時間"],["entry_px","進場價"],["exit_px","出場價"],["pnl_sim","損益(點)"],["cum_pnl","累積(點)"]];
+  h+='<div class="tablewrap scrollbox"><table><thead><tr>'+
+    cols.map(function(c,i){return '<th'+(i<1?' class="l"':'')+'>'+c[1]+'</th>';}).join("")+
+    '</tr></thead><tbody>'+
+    rows.slice().reverse().map(function(r){
+      return '<tr>'+
+        '<td class="l">'+esc(r.date)+'</td><td>'+esc(r.sox_date)+'</td><td>'+fmtPct(r.sox_ret)+'</td>'+
+        '<td>'+esc(r.bucket)+'</td><td>'+esc(r.action)+'</td><td>'+esc(r.entry_time)+'</td>'+
+        '<td>'+fmtN(r.entry_px)+'</td><td>'+fmtN(r.exit_px)+'</td><td>'+fmtPnl(r.pnl_sim)+'</td><td>'+fmtN(r.cum_pnl)+'</td>'+
+        '</tr>';
+    }).join("")+'</tbody></table></div>';
+  el.innerHTML=h;
+}
+
+// ---- 載入（同源相對路徑；失敗靜默降級為提示文字，不拋例外）----
+fetch('walkforward/ledger.csv?t='+Date.now(),{cache:'no-store'})
+  .then(function(r){return r.ok?r.text():Promise.reject(new Error("HTTP "+r.status));})
+  .then(function(t){renderLedger(parseCsv(t));})
+  .catch(function(){document.getElementById("ledger").innerHTML='<div class="loading">記錄載入失敗</div>';});
+</script>
+</body>
+</html>
