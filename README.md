@@ -151,7 +151,15 @@ FinMind `TaiwanStockKBar` 新增 TAIEX 加權指數分 K（2005 起），提供�
 （時段差 15 分鐘、無期現價差滑價）；量能過濾（v2 的 rv≥1）歷史段無法驗證，
 僅供現代側選配。FinMind 期貨分 K 上線後應以真期貨價重做歷史段。
 
-## 前推對帳（walkforward/，2026-09-03 啟動）
+## 前推對帳（walkforward/；2026-09-04 起現行版本＝v3-SL）
+
+**2026-09-04 策略切換**：v3（無停損）→ **v3-SL**（＋停損 0.75%，見下方括號研究）。
+帳冊重啟計數：舊 v3 帳封存於 `walkforward/ledger_v3_nostop.csv`（僅 2026-09-03 一筆 −367），
+新 `ledger.csv` 自 2026-09-04 起記 v3-SL（加 `how` 欄：stop/close）；
+MDD 警戒線同步改 −2,044（v3-SL 現代段回測值）。
+
+（v3 時期原始說明如下）
+
 
 playbook v3 定版後的每日模擬記帳，規則凍結、不得回頭改：
 `walkforward/walkforward_daily.py` 由 `.github/workflows/walkforward.yml`

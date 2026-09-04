@@ -60,17 +60,17 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
 
   <!-- 區塊一：策略參數 -->
   <section id="sec-params">
-    <div class="crumb"><b>策略參數</b> <span class="mut">Playbook v3（2026-09-03 定版）</span></div>
-    <div class="note">訊號＝前一晚費城半導體指數（^SOX）收盤漲跌幅；美股 T 日訊號對台股 T+1 日操作。</div>
+    <div class="crumb"><b>策略參數</b> <span class="mut">Playbook v3-SL（2026-09-04 定版）</span></div>
+    <div class="note">訊號＝前一晚費城半導體指數（^SOX）收盤漲跌幅；美股 T 日訊號對台股 T+1 日操作。共通出場：<b>停損 0.75%</b>（進場價計、觸價出場）；未觸損則收盤平，無停利。</div>
     <div class="tablewrap"><table>
       <thead><tr><th class="l">SOX 前收漲跌幅</th><th class="l">動作</th></tr></thead>
       <tbody>
         <tr><td class="l">大跌 &lt;−2%</td><td class="l">空手</td></tr>
-        <tr><td class="l">跌 −2%～−1%</td><td class="l">開盤空 → 收盤平</td></tr>
+        <tr><td class="l">跌 −2%～−1%</td><td class="l">開盤空 → 停損0.75% / 收盤平</td></tr>
         <tr><td class="l">小跌 −1%～0%</td><td class="l">空手</td></tr>
-        <tr><td class="l">小漲 0%～1%</td><td class="l">開盤多 → 收盤平</td></tr>
-        <tr><td class="l">漲 1%～2%</td><td class="l">開盤多 → 收盤平</td></tr>
-        <tr><td class="l">大漲 &gt;2%</td><td class="l">10:00 空 → 收盤平</td></tr>
+        <tr><td class="l">小漲 0%～1%</td><td class="l">開盤多 → 停損0.75% / 收盤平</td></tr>
+        <tr><td class="l">漲 1%～2%</td><td class="l">開盤多 → 停損0.75% / 收盤平</td></tr>
+        <tr><td class="l">大漲 &gt;2%</td><td class="l">10:00 空 → 停損0.75% / 收盤平</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -83,17 +83,17 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
         <div class="h">歷史段 2005–2022（TAIEX近似、未扣成本）</div>
         <div class="mkrow">
           <span>正報酬年 <b>18/18</b></span>
-          <span>年均 <b>+2,972 點</b></span>
-          <span>最差年 <b>+1,326 點</b></span>
+          <span>年均 <b>+3,292 點</b></span>
+          <span>最差年 <b>+1,338 點</b></span>
         </div>
       </div>
       <div class="statcard">
         <div class="h">現代段 2023–2026（小台實價、扣成本）</div>
         <div class="mkrow">
           <span>正報酬年 <b>4/4</b></span>
-          <span>各年 <b>+773 / +4,848 / +4,446 / +7,371</b></span>
-          <span>週平均 <b>+115 點</b></span>
-          <span>MDD <b>−2,997 點</b></span>
+          <span>各年 <b>+742 / +4,300 / +4,473 / +6,990</b></span>
+          <span>週平均 <b>+107 點</b></span>
+          <span>MDD <b>−2,044 點</b>　<span class="mut">最大單虧 −363</span></span>
         </div>
       </div>
     </div>
@@ -110,7 +110,7 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
 <script>
 "use strict";
 // ---- 常數 ----
-var MDD_BT = -2997;   // 現代段回測 MDD（點），前推回落低於此值時警示
+var MDD_BT = -2044;   // 現代段回測 MDD（點），前推回落低於此值時警示
 
 // ---- 工具 ----
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
