@@ -9,6 +9,8 @@ Playbook v3 前推對帳 — 每日模擬記帳
     前晚費半(^SOX)  大跌<-2%: 空手 | 跌-2~-1%: 08:45空->13:44 | 小跌-1~0: 空手
                    小漲0~1%: 08:45多->13:44 | 漲1~2%: 08:45多->13:44 | 大漲>2%: 10:00空->13:44
   成本 2 點。逐日 append walkforward/ledger.csv, 冪等(同日已記帳即跳過)。
+  2026-09-05 口徑統一: 收盤出場=13:44 最後成交(<=13:44:59), 不含 13:45 定盤 tick
+  (2026-09-03/04 兩列為舊 13:45 口徑, 不回改; 稽核 AUDIT-REPORT P1 節)。
   目標日: 台北時間 hour<12 回推一天(防 cron 延遲跨午夜, 同 taiwan-flows target_trading_day)。
   資料未落地/非交易日 -> 正常結束(exit 0), 由下一班或隔日補。
 """
@@ -89,7 +91,9 @@ def main():
         near = df.groupby("contract_date")["volume"].sum().idxmax()
         df = df[df["contract_date"] == near].copy()
         df["t"] = df["date"].astype(str).str.slice(11, 19)
-        day = df[(df["t"] >= "08:45:00") & (df["t"] <= "13:45:00")]
+        # 收盤口徑統一 13:44(2026-09-05 使用者裁定): 不含 13:45 定盤 tick,
+        # 與回測主張 A/B(a19)口徑一致; 帳冊既有歷史列(13:45 口徑)不回改。
+        day = df[(df["t"] >= "08:45:00") & (df["t"] <= "13:44:59")]
         if day.empty:
             print(f"{tstr} 日盤 tick 空, 本班不記帳"); return
         day = day.sort_values("t")

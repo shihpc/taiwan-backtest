@@ -61,7 +61,7 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
   <!-- 區塊一：策略參數 -->
   <section id="sec-params">
     <div class="crumb"><b>策略參數</b> <span class="mut">Playbook v3-SL（2026-09-04 定版）</span></div>
-    <div class="note">訊號＝前一晚費城半導體指數（^SOX）收盤漲跌幅；美股 T 日訊號對台股 T+1 日操作。共通出場：<b>停損 0.75%</b>（進場價計、觸價出場）；未觸損則收盤平，無停利。</div>
+    <div class="note">訊號＝前一晚費城半導體指數（^SOX）收盤漲跌幅；美股 T 日訊號對台股 T+1 日操作。共通出場：<b>停損 0.75%</b>（進場價計、觸價出場）；未觸損則收盤平（13:44 最後成交，不含 13:45 定盤；2026-09-05 口徑統一），無停利。</div>
     <div class="tablewrap"><table>
       <thead><tr><th class="l">SOX 前收漲跌幅</th><th class="l">動作</th></tr></thead>
       <tbody>
@@ -98,6 +98,14 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
       </div>
     </div>
     <div class="note">完整分析與可重跑腳本見本 repo README 與 scripts/。</div>
+    <div class="card" style="font-size:12px">
+      <div style="font-weight:700;margin-bottom:4px">2026-09-05 獨立稽核摘要（<a href="https://github.com/shihpc/taiwan-backtest/blob/main/audit/AUDIT-REPORT.md" style="color:var(--accent)">完整報告</a>）</div>
+      <div class="disclaim" style="margin-bottom:4px">
+        ・所有已發布數字經獨立引擎逐筆重現一致；引擎兩處修正（MDD 起始權益、停損跳空穿價模型）對上表數字影響：現代段 −51 點、歷史段 −1,805 點（量級小，未改表）。<br>
+        ・<b>證據強度排序（稽核結論）</b>：歷史段做多桶的「18 年驗證」被判定為<b>指數停滯假象</b>——TAIEX 開盤價含未更新成分股（開盤跳空中位 0.000%），把訊號延後一分鐘進場後做多桶歷史利潤即消失，該部分證據降級為僅現代段 3 年樣本；<b>空方桶</b>（大漲&gt;2% 的 10:00 進場完整通過延遲檢定、跌−2~−1% 保留約四成）證據強度較高。<br>
+        ・乾淨前推樣本自 <b>2026-09-07</b> 起算（凍結首日非嚴格事前）。以上為 AI 稽核研判、非保證。
+      </div>
+    </div>
   </section>
 
   <!-- 區塊三：前推對帳 -->
