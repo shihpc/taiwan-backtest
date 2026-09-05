@@ -50,7 +50,7 @@ v3-SL 切換＝本 repo commit `da32160`（2026-09-04）。檢核者可比對 co
 | A | v3-SL 歷史段 2005–2022 十八年逐年皆正 | 總 +59,256 點、18/18 年、最差年 +1,338、MDD −886、最大單虧 −138（未扣成本、TAIEX 近似） | `python3 scripts/analysis19_bracket.py`（看 hist 段 TP0/SL0.75% 列） | `output/v18_bracket_hist.csv` |
 | B | v3-SL 現代段 2023–2026 四年皆正 | 總 +16,506、+742/+4,300/+4,473/+6,990、週均 +107、MDD −2,044、最大單虧 −363（扣 2 點） | 同上腳本 modern 段 | `output/v18_bracket_modern.csv` |
 | C | 無停損版 v3 為對照 | 現代 +17,492/MDD −3,012；歷史 +53,496/18/18 | `python3 scripts/analysis16_playbook3.py`（應印出「正年=18/18」「正年=4/4」） | `output/v14_longcheck_trades.csv`、`v15_v3b_modern.csv` |
-| D | 逐桶 18 年判決（含兩桶翻車） | 漲1~2%多 t=+9.8/18/18；跌−2~−1%空 t=+6.9/17/18；大漲空 t=+2.2/13/18；小漲多 t=+4.7/15/18；小跌多 8/18（刪）；**大跌早盤多 avg −90.3/t=−17.2/0/18（刪）** | `python3 scripts/analysis15_longcheck.py` | 同上 |
+| D | 逐桶 18 年判決（含兩桶翻車） | 漲1~2%多 t=+9.8/18/18；跌−2~−1%空 t=+6.9/17/18；大漲空 t=+2.2/13/18；小漲多 t=+4.7/15/18；小跌多 8/18（刪）；**大跌早盤多 avg −90.3/t=−17.2/0/18（刪）** | `python3 scripts/analysis15_longcheck.py` | `output/v13_allbuckets_trades.csv`（含全六桶；與主張 C 的四桶檔不同） |
 | E | 停利有害、停損 0.75% 雙時代穩健 | 停利各檔位單調減損總獲利；SL0.75% 歷史段總獲利 +11%、SL0.5% 於 2022 年僅 +59（否決） | analysis19（20 格全表）＋ `scripts/analysis17_pct_exit.py`/`analysis18_pct_exit_hist.py` | `v18_*`、`v16_pct_exit_modern.csv`、`v17_pct_exit_hist.csv` |
 | F | 前推對帳自動運行 | GitHub Actions 台北 21:07/23:07（`.github/workflows/walkforward.yml`），冪等、hour<12 防跨午夜；MDD 停機線 −2,044 | 看 Actions run 歷史（run #1 success） | `walkforward/ledger.csv`（v3-SL，2026-09-04 起）；舊 v3 帳封存 `ledger_v3_nostop.csv`（一筆 2026-09-03 −367） |
 

@@ -57,4 +57,4 @@ for name, m, v in BUCK:
     t = x.mean() / (x.std() / np.sqrt(len(x))) if len(x) > 1 else np.nan
     print(f"  {name:<24s} n={len(x):4d} avg={x.mean():+7.2f} t={t:+5.2f} "
           f"正年={int((ys>0).sum())}/{len(ys)}")
-res.to_csv("output/v14_longcheck_trades.csv", index=False)
+res.to_csv("output/v13_allbuckets_trades.csv", index=False)

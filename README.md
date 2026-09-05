@@ -115,7 +115,7 @@ FinMind `TaiwanStockKBar` 新增 TAIEX 加權指數分 K（2005 起），提供�
 近似：TAIEX 09:00 開盤／13:30 收盤（期貨 08:45／13:44）、未扣成本、無量能欄——
 **純方向驗證**，不是損益複製。
 
-### 逐桶判決（`analysis15_longcheck.py` / `v14_longcheck_trades.csv`）
+### 逐桶判決（`analysis15_longcheck.py` / `v13_allbuckets_trades.csv`）
 
 | v2 規則 | 18 年成績 | 判決 |
 |---------|----------|------|
