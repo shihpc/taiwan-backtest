@@ -76,3 +76,25 @@ def simulate_day(op, hi, lo, close_px, entry_i, entry_px, d, sl_pct,
             exit_px = stop_fill - d * slip
             return (exit_px - entry_px) * d - cost, "stop", exit_px
     return (close_px - entry_px) * d - cost, "close", close_px
+
+
+def simulate_day_full(op, hi, lo, close_px, entry_i, entry_px, d, sl_pct,
+                      cost=2.0, slip=0.0, fill_model="gap"):
+    """同 simulate_day 但另回傳出場 bar 序號(曝險時間用)。close 出場=最後一根。"""
+    sl_amt = entry_px * sl_pct
+    trigger = entry_px - d * sl_amt
+    stop_fill = _round_worse(trigger, d)
+    for j in range(entry_i, len(hi)):
+        o = op[j]
+        gap_through = (o <= trigger) if d == 1 else (o >= trigger)
+        if fill_model == "gap" and gap_through and j > entry_i:
+            exit_px = o - d * slip
+            return (exit_px - entry_px) * d - cost, "stop_gap", exit_px, j
+        adverse = (entry_px - lo[j]) if d == 1 else (hi[j] - entry_px)
+        if adverse >= sl_amt:
+            if fill_model == "gap":
+                exit_px = stop_fill - d * slip
+            else:
+                exit_px = entry_px - d * sl_amt
+            return (exit_px - entry_px) * d - cost, "stop", exit_px, j
+    return (close_px - entry_px) * d - cost, "close", close_px, len(hi) - 1
