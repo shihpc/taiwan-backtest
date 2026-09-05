@@ -1,0 +1,4 @@
+scenario,n_trades,n_active,zero_lot_days,avg_lots,max_lots,total_ntd,mdd_ntd,mdd_pct_cap,ret_pct_cap
+fixed_1lot,491,491,0,1.0,1,822750.0,-102800.0,-11.4%,91.4%
+risk1pct,491,320,171,0.65,1,426750.0,-36350.0,-4.0%,47.4%
+risk2pct,491,489,2,1.65,2,1230900.0,-102800.0,-11.4%,136.8%
