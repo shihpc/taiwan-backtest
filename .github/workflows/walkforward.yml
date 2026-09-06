@@ -55,7 +55,10 @@ jobs:
       - name: Commit shadow
         run: |
           cd "$GITHUB_WORKSPACE"
-          git add walkforward/ledger_shadow_1rbe.csv walkforward/ledger_shadow_1rbe_ts.csv
+          # 影子 CSV 首日(2026-09-07)之前尚不存在, git add 不存在的路徑會 exit 128
+          for f in walkforward/ledger_shadow_1rbe.csv walkforward/ledger_shadow_1rbe_ts.csv; do
+            [ -f "$f" ] && git add "$f"
+          done
           if git diff --staged --quiet; then
             echo "無新影子記帳, 不 commit"; exit 0
           fi
