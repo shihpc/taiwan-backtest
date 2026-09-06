@@ -46,6 +46,26 @@ jobs:
           done
           exit 1
 
+      # 影子對照帳冊(1R保本 / 1R保本+時間停損): 規格 walkforward/SHADOW-SPEC.md。
+      # 刻意排在正式帳冊 commit 之後 —— 影子失敗不影響正式落帳, 但仍觸發告警。
+      - name: 影子記帳
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: python walkforward/shadow_daily.py
+      - name: Commit shadow
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git add walkforward/ledger_shadow_1rbe.csv walkforward/ledger_shadow_1rbe_ts.csv
+          if git diff --staged --quiet; then
+            echo "無新影子記帳, 不 commit"; exit 0
+          fi
+          git commit -m "walkforward shadow ledgers $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for i in 1 2 3 4 5; do
+            git push && exit 0
+            git pull --rebase && sleep $((i*3))
+          done
+          exit 1
+
       - name: Notify failure
         # cancelled 也要告警：跑一半被取消（GitHub 端異常或誤按）同樣代表該場沒產出，
         # 而 failure() 在 cancelled 時不成立（2026-07-24 postmkt pm 場靜默消失的教訓）
