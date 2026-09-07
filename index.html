@@ -25,6 +25,9 @@ main{padding:8px 12px 30px;max-width:960px;margin:0 auto}
 .crumb{font-size:13px;color:var(--dim);margin:14px 0 4px}
 .crumb b{color:var(--fg);font-size:14px}
 .note{font-size:11px;color:var(--dim);margin:2px 0 6px}
+.topline{font-size:12px;color:var(--dim);padding:2px 2px 0}
+.topline b{color:var(--fg);font-weight:600}
+.st-ok{color:var(--down)}.st-wait{color:#e0a63a}.st-bad{color:var(--up)}.st-mut{color:var(--muted)}
 .mkrow{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
 .mkrow b{font-size:17px}
 .statwrap{display:flex;flex-wrap:wrap;gap:8px}
@@ -57,6 +60,8 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
 </header>
 <main>
   <div class="card disclaim">回測與模擬記錄為歷史資料研究、非投資建議；模擬損益未含滑價，實際交易結果會不同。</div>
+  <!-- 頂列「資料日｜狀態」：帳冊停更時不可讓畫面看起來正常（家族共通要求）。判準見 ledgerStatus()。 -->
+  <div id="topline" class="topline">資料日 <b>—</b>｜狀態 <b class="st-mut">載入中</b></div>
 
   <!-- 區塊一：策略參數 -->
   <section id="sec-params">
@@ -78,6 +83,7 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
   <!-- 區塊二：回測驗證 -->
   <section id="sec-backtest">
     <div class="crumb"><b>回測驗證</b></div>
+    <div class="note"><span class="db">⚠ 本節數字已於 2026-09-05 稽核降級</span>——歷史段做多桶的「18 年驗證」為指數停滯假象、五年視角下 2021／2022 為虧損年；詳見下方 <a href="#sec-audit" style="color:var(--accent)">2026-09-05 獨立稽核摘要</a>。</div>
     <div class="statwrap">
       <div class="statcard">
         <div class="h">歷史段 2005–2022（TAIEX近似、未扣成本）</div>
@@ -98,7 +104,7 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
       </div>
     </div>
     <div class="note">完整分析與可重跑腳本見本 repo README 與 scripts/。</div>
-    <div class="card" style="font-size:12px">
+    <div class="card" id="sec-audit" style="font-size:12px">
       <div style="font-weight:700;margin-bottom:4px">2026-09-05 獨立稽核摘要（<a href="https://github.com/shihpc/taiwan-backtest/blob/main/audit/AUDIT-REPORT.md" style="color:var(--accent)">完整報告</a>）</div>
       <div class="disclaim" style="margin-bottom:4px">
         ・所有已發布數字經獨立引擎逐筆重現一致；引擎兩處修正（MDD 起始權益、停損跳空穿價模型）對上表數字影響：現代段 −51 點、歷史段 −1,805 點（量級小，未改表）。<br>
@@ -129,6 +135,60 @@ function fmtN(v){var n=+v;return (v===""||v==null||!isFinite(n))?"—":n.toLocal
 function fmtPnl(v){var n=+v;if(v===""||v==null||!isFinite(n))return"—";
   return '<span class="'+(n>0?"up":n<0?"down":"mut")+'">'+(n>0?"+":"")+n.toLocaleString("en-US",{maximumFractionDigits:1})+'</span>';}
 function fmtPct(v){var n=+v;return (v===""||v==null||!isFinite(n))?"—":(n>0?"+":"")+(n*100).toFixed(2)+"%";}
+
+// ---- 帳冊新鮮度：資料日｜狀態 ----
+// 語意比照 taiwan-flows 的 siteStatus()／postmkt 的 pmStatus()（正常／等待資料發布／
+// 休市定格／資料缺漏／查詢失敗（未知）），但門檻依本站自己的排程重新決定：
+// 依 .github/workflows/walkforward.yml 的兩班 cron＝台北 21:07 主班、23:07 兜底（週一~五），
+// 且該檔頂端註解自述「GitHub cron 常態延遲 1~2 小時」，所以 21:07 一到就要求今日資料存在會誤報。
+// 作法：先把台北時鐘回推 12 小時得「參考班次日」refDay——與 walkforward_daily.py 的
+// target=(now-12h)（hour<12 回推一天）同一套，避免跨午夜把預期日滾成隔天。
+// 參考時鐘（＝台北時鐘 −12h）上的兩個門檻：
+//   < 09:07（台北 21:07 前）    ：今日班次尚未排定執行，帳冊停在上一交易日＝正常
+//   09:07~12:30（台北 21:07 ~ 隔日 00:30）：主班＋兜底＋1~2 小時延遲的窗內＝等待資料發布
+//   >= 12:30（台北隔日 00:30 後）：兩班加緩衝都過了仍缺＝資料缺漏
+// 國定假日不處理（本 repo 無行事曆來源，與家族另四站同立場）：假日晚間可能誤報一次
+// 「資料缺漏」；反向誤差是 walkforward_daily.py 在空手桶的假日仍會記一列。兩者皆接受。
+// 「查詢失敗（未知）」＝不知道資料好壞，不是資料異常，故用中性灰不用紅。
+function twNow(){ return new Date().toLocaleString("sv-SE",{timeZone:"Asia/Taipei"}); } // "YYYY-MM-DD HH:MM:SS"
+function shiftHours(s,h){
+  var t=Date.parse(s.slice(0,10)+"T"+s.slice(11,19)+"Z");
+  return new Date(t+h*3600e3).toISOString().slice(0,19).replace("T"," ");
+}
+function prevWeekday(d){
+  var t=Date.parse(d+"T00:00:00Z"),g;
+  do{ t-=864e5; g=new Date(t).getUTCDay(); }while(g===0||g===6);
+  return new Date(t).toISOString().slice(0,10);
+}
+function isWeekend(d){ var g=new Date(d+"T00:00:00Z").getUTCDay(); return g===0||g===6; }
+function ledgerStatus(lastDate, nowStr){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(lastDate==null?"":lastDate)))
+    return {txt:"查詢失敗（未知）",cls:"st-mut",
+      title:"帳冊 walkforward/ledger.csv 讀不到或格式不合——不知道資料好壞，不代表資料異常"};
+  var ref=shiftHours(nowStr||twNow(),-12), refDay=ref.slice(0,10), hm=ref.slice(11,16);
+  if(isWeekend(refDay)){
+    var fri=prevWeekday(refDay);
+    return lastDate>=fri
+      ? {txt:"休市定格",cls:"st-mut",title:"週末非交易日，帳冊停在最近交易日 "+lastDate}
+      : {txt:"資料缺漏",cls:"st-bad",title:"最近交易日 "+fri+" 應有記錄，帳冊只到 "+lastDate};
+  }
+  if(lastDate>=refDay) return {txt:"正常",cls:"st-ok",title:"帳冊已記到參考交易日 "+refDay};
+  var prev=prevWeekday(refDay);
+  if(lastDate<prev) return {txt:"資料缺漏",cls:"st-bad",
+    title:"落後一個交易日以上：參考交易日 "+refDay+"、上一交易日 "+prev+"，帳冊只到 "+lastDate};
+  if(hm<"09:07") return {txt:"正常",cls:"st-ok",
+    title:refDay+" 的記帳班（台北 21:07 主班）尚未排定執行，帳冊停在上一交易日 "+lastDate};
+  if(hm<"12:30") return {txt:"等待資料發布",cls:"st-wait",
+    title:refDay+" 的記帳班已排定（台北 21:07 主班／23:07 兜底），GitHub cron 常態延遲 1~2 小時；帳冊目前為 "+lastDate};
+  return {txt:"資料缺漏",cls:"st-bad",
+    title:refDay+" 的兩班（台北 21:07／23:07）加緩衝均已過，帳冊仍停在 "+lastDate};
+}
+function renderTopline(lastDate){
+  var el=document.getElementById("topline"); if(!el) return;
+  var st=ledgerStatus(lastDate);
+  el.innerHTML='資料日 <b>'+esc(lastDate?lastDate:"—")+'</b>｜狀態 <b class="'+st.cls+'" title="'+
+    esc(st.title)+'">'+esc(st.txt)+'</b>';
+}
 
 // ---- CSV 解析（欄位值不含逗號的簡單格式；動態值渲染一律過 esc()）----
 function parseCsv(t){
@@ -220,8 +280,15 @@ function renderLedger(rows){
 // ---- 載入（同源相對路徑；失敗靜默降級為提示文字，不拋例外）----
 fetch('walkforward/ledger.csv?t='+Date.now(),{cache:'no-store'})
   .then(function(r){return r.ok?r.text():Promise.reject(new Error("HTTP "+r.status));})
-  .then(function(t){renderLedger(parseCsv(t));})
-  .catch(function(){document.getElementById("ledger").innerHTML='<div class="loading">記錄載入失敗</div>';});
+  .then(function(t){
+    var rows=parseCsv(t);
+    renderLedger(rows);
+    renderTopline(rows.length?rows[rows.length-1].date:"");   // 空檔/欄位壞掉 -> 查詢失敗（未知）
+  })
+  .catch(function(){
+    document.getElementById("ledger").innerHTML='<div class="loading">記錄載入失敗</div>';
+    renderTopline("");   // 讀不到 CSV 不得靜默當成正常
+  });
 </script>
 </body>
 </html>
