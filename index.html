@@ -27,7 +27,9 @@ main{padding:8px 12px 30px;max-width:960px;margin:0 auto}
 .note{font-size:11px;color:var(--dim);margin:2px 0 6px}
 .topline{font-size:12px;color:var(--dim);padding:2px 2px 0}
 .topline b{color:var(--fg);font-weight:600}
-.st-ok{color:var(--down)}.st-wait{color:#e0a63a}.st-bad{color:var(--up)}.st-mut{color:var(--muted)}
+/* 這四條必須帶 .topline b 前綴：.topline b{color:var(--fg)} 的特異性是 0-1-1，
+   裸 class 的 0-1-0 會被它壓過去，五種狀態顏色會全變成 --fg（2026-09-07 驗收實測）。 */
+.topline b.st-ok{color:var(--down)}.topline b.st-wait{color:#e0a63a}.topline b.st-bad{color:var(--up)}.topline b.st-mut{color:var(--muted)}
 .mkrow{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
 .mkrow b{font-size:17px}
 .statwrap{display:flex;flex-wrap:wrap;gap:8px}
@@ -145,8 +147,10 @@ function fmtPct(v){var n=+v;return (v===""||v==null||!isFinite(n))?"—":(n>0?"+
 // target=(now-12h)（hour<12 回推一天）同一套，避免跨午夜把預期日滾成隔天。
 // 參考時鐘（＝台北時鐘 −12h）上的兩個門檻：
 //   < 09:07（台北 21:07 前）    ：今日班次尚未排定執行，帳冊停在上一交易日＝正常
-//   09:07~12:30（台北 21:07 ~ 隔日 00:30）：主班＋兜底＋1~2 小時延遲的窗內＝等待資料發布
-//   >= 12:30（台北隔日 00:30 後）：兩班加緩衝都過了仍缺＝資料缺漏
+//   09:07~13:07（台北 21:07 ~ 隔日 01:07）：主班＋兜底＋1~2 小時延遲的窗內＝等待資料發布
+//   >= 13:07（台北隔日 01:07 後）：兩班加緩衝都過了仍缺＝資料缺漏
+//   （13:07 ＝ 兜底 23:07 ＋ 上述自述延遲上限 2 小時。原寫 12:30＝台北 00:30，比兜底班
+//    加滿延遲早了 37 分，註解的推導與門檻不自洽——2026-09-07 驗收實測指出，已對齊。）
 // 國定假日不處理（本 repo 無行事曆來源，與家族另四站同立場）：假日晚間可能誤報一次
 // 「資料缺漏」；反向誤差是 walkforward_daily.py 在空手桶的假日仍會記一列。兩者皆接受。
 // 「查詢失敗（未知）」＝不知道資料好壞，不是資料異常，故用中性灰不用紅。
@@ -178,7 +182,7 @@ function ledgerStatus(lastDate, nowStr){
     title:"落後一個交易日以上：參考交易日 "+refDay+"、上一交易日 "+prev+"，帳冊只到 "+lastDate};
   if(hm<"09:07") return {txt:"正常",cls:"st-ok",
     title:refDay+" 的記帳班（台北 21:07 主班）尚未排定執行，帳冊停在上一交易日 "+lastDate};
-  if(hm<"12:30") return {txt:"等待資料發布",cls:"st-wait",
+  if(hm<"13:07") return {txt:"等待資料發布",cls:"st-wait",
     title:refDay+" 的記帳班已排定（台北 21:07 主班／23:07 兜底），GitHub cron 常態延遲 1~2 小時；帳冊目前為 "+lastDate};
   return {txt:"資料缺漏",cls:"st-bad",
     title:refDay+" 的兩班（台北 21:07／23:07）加緩衝均已過，帳冊仍停在 "+lastDate};
