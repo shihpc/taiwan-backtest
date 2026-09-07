@@ -65,27 +65,14 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
   <!-- 頂列「資料日｜狀態」：帳冊停更時不可讓畫面看起來正常（家族共通要求）。判準見 ledgerStatus()。 -->
   <div id="topline" class="topline">資料日 <b>—</b>｜狀態 <b class="st-mut">載入中</b></div>
 
-  <!-- 區塊一：策略參數 -->
-  <section id="sec-params">
-    <div class="crumb"><b>策略參數</b> <span class="mut">Playbook v3-SL（2026-09-04 定版）</span></div>
-    <div class="note">訊號＝前一晚費城半導體指數（^SOX）收盤漲跌幅；美股 T 日訊號對台股 T+1 日操作。共通出場：<b>停損 0.75%</b>（進場價計、觸價出場）；未觸損則收盤平（13:44 最後成交，不含 13:45 定盤；2026-09-05 口徑統一），無停利。</div>
-    <div class="tablewrap"><table>
-      <thead><tr><th class="l">SOX 前收漲跌幅</th><th class="l">動作</th></tr></thead>
-      <tbody>
-        <tr><td class="l">大跌 &lt;−2%</td><td class="l">空手</td></tr>
-        <tr><td class="l">跌 −2%～−1%</td><td class="l">開盤空 → 停損0.75% / 收盤平</td></tr>
-        <tr><td class="l">小跌 −1%～0%</td><td class="l">空手</td></tr>
-        <tr><td class="l">小漲 0%～1%</td><td class="l">開盤多 → 停損0.75% / 收盤平</td></tr>
-        <tr><td class="l">漲 1%～2%</td><td class="l">開盤多 → 停損0.75% / 收盤平</td></tr>
-        <tr><td class="l">大漲 &gt;2%</td><td class="l">10:00 空 → 停損0.75% / 收盤平</td></tr>
-      </tbody>
-    </table></div>
-  </section>
-
-  <!-- 區塊二：回測驗證 -->
+  <!-- 區塊一：回測驗證（降級結論在績效數字之前，刻意排在策略參數之上）-->
   <section id="sec-backtest">
-    <div class="crumb"><b>回測驗證</b></div>
-    <div class="note"><span class="db">⚠ 本節數字已於 2026-09-05 稽核降級</span>——歷史段做多桶的「18 年驗證」為指數停滯假象、五年視角下 2021／2022 為虧損年；詳見下方 <a href="#sec-audit" style="color:var(--accent)">2026-09-05 獨立稽核摘要</a>。</div>
+    <div class="crumb"><b>回測驗證</b> <span class="mut">先讀降級結論，再讀數字</span></div>
+    <!-- 可信度先於數字：這段必須留在績效卡之上（390x844 首屏內兩者同時可見，2026-09-07 以 getBoundingClientRect 實測）。首句與下方稽核卡文字均為既有原文，只可加長不可刪減。 -->
+    <div class="note" id="sec-credibility"><span class="db">⚠ 本節數字已於 2026-09-05 稽核降級</span>——歷史段做多桶的「18 年驗證」為指數停滯假象、五年視角下 2021／2022 為虧損年；詳見下方 <a href="#sec-audit" style="color:var(--accent)">2026-09-05 獨立稽核摘要</a>。<br>
+      ・<b>歷史段 18/18</b>：把訊號延後一分鐘進場後做多桶歷史利潤即消失，該部分證據降級為僅現代段 3 年樣本；空方桶（大漲&gt;2% 的 10:00 進場完整通過延遲檢定、跌−2~−1% 保留約四成）證據強度較高。<br>
+      ・<b>現代段 4/4</b>：是樣本自 2023-08 起算的結果，五年視角下獲利集中於 2024–2026，而 <b>2021 與 2022 為虧損年</b>（−813 部分年／−1,910 點）。<br>
+      ・以上為 AI 稽核研判、非保證；乾淨前推樣本自 <b>2026-09-07</b> 起算（凍結首日非嚴格事前）。</div>
     <div class="statwrap">
       <div class="statcard">
         <div class="h">歷史段 2005–2022（TAIEX近似、未扣成本）</div>
@@ -116,6 +103,23 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
         ・乾淨前推樣本自 <b>2026-09-07</b> 起算（凍結首日非嚴格事前）。以上為 AI 稽核研判、非保證。
       </div>
     </div>
+  </section>
+
+  <!-- 區塊二：策略參數 -->
+  <section id="sec-params">
+    <div class="crumb"><b>策略參數</b> <span class="mut">Playbook v3-SL（2026-09-04 定版）</span></div>
+    <div class="note">訊號＝前一晚費城半導體指數（^SOX）收盤漲跌幅；美股 T 日訊號對台股 T+1 日操作。共通出場：<b>停損 0.75%</b>（進場價計、觸價出場）；未觸損則收盤平（13:44 最後成交，不含 13:45 定盤；2026-09-05 口徑統一），無停利。</div>
+    <div class="tablewrap"><table>
+      <thead><tr><th class="l">SOX 前收漲跌幅</th><th class="l">動作</th></tr></thead>
+      <tbody>
+        <tr><td class="l">大跌 &lt;−2%</td><td class="l">空手</td></tr>
+        <tr><td class="l">跌 −2%～−1%</td><td class="l">開盤空 → 停損0.75% / 收盤平</td></tr>
+        <tr><td class="l">小跌 −1%～0%</td><td class="l">空手</td></tr>
+        <tr><td class="l">小漲 0%～1%</td><td class="l">開盤多 → 停損0.75% / 收盤平</td></tr>
+        <tr><td class="l">漲 1%～2%</td><td class="l">開盤多 → 停損0.75% / 收盤平</td></tr>
+        <tr><td class="l">大漲 &gt;2%</td><td class="l">10:00 空 → 停損0.75% / 收盤平</td></tr>
+      </tbody>
+    </table></div>
   </section>
 
   <!-- 區塊三：前推對帳 -->
