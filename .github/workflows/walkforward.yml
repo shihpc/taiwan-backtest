@@ -1,7 +1,15 @@
 # Playbook v3 前推對帳 — 每日模擬記帳 (walkforward/)
-# 排程注意: 兩班都在台北午夜前 (21:07 主班 / 23:07 兜底)。GitHub cron 常態延遲
-# 1~2 小時, 若延遲跨台北午夜, 腳本以「hour<12 回推一天」決定目標日, 不會滾成隔日
+# 排程注意: 兩班都在台北午夜前 (21:07 主班 / 23:07 兜底)。GitHub cron 會延遲, 若延遲跨
+# 台北午夜, 腳本以「hour<12 回推一天」決定目標日, 不會滾成隔日
 # (同 taiwan-flows target_trading_day; taiwan-stock-news 2026-07-16 事故的教訓)。
+# 延遲實測 (2026-09-07, 本帳號 taiwan-flows/postmkt/taiwan-flow-live-v2 三 repo 共 120 筆
+# event:schedule run, created_at 減 cron 排定時刻): 中位數 3h02m / p90 6h09m / 最大 9h45m;
+# >2h 佔 66.7%, >4h 佔 26.7%, >10h 為 0 筆; 分月中位數 07 月 2h03m -> 08 月 2h13m ->
+# 09 月 3h21m (延遲在惡化)。本檔原寫「常態延遲 1~2 小時」與實測不符, 2026-09-07 依上表更正。
+# index.html 的 ledgerStatus() 與跨站判級 (taiwan-flow-live-v2 Worker gradeBacktest、
+# claude-harness freshness_watchdog.judge_backtest) 的「資料缺漏」紅線即依此表定為
+# 主班+10 小時 (參考時鐘 19:07): 實測 120 筆無一超過, 且距腳本硬期限 (target=(now-12h),
+# 主班+14h53m 後參考日滾成隔天而永久漏記) 仍有近 5 小時餘裕。
 # 腳本冪等: 同日已記帳即跳過; tick 未落地則本班放棄、由下一班或隔日補。
 name: walkforward
 on:
