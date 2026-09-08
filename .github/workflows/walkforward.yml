@@ -2,14 +2,29 @@
 # 排程注意: 兩班都在台北午夜前 (21:07 主班 / 23:07 兜底)。GitHub cron 會延遲, 若延遲跨
 # 台北午夜, 腳本以「hour<12 回推一天」決定目標日, 不會滾成隔日
 # (同 taiwan-flows target_trading_day; taiwan-stock-news 2026-07-16 事故的教訓)。
-# 延遲實測 (2026-09-07, 本帳號 taiwan-flows/postmkt/taiwan-flow-live-v2 三 repo 共 120 筆
-# event:schedule run, created_at 減 cron 排定時刻): 中位數 3h02m / p90 6h09m / 最大 9h45m;
-# >2h 佔 66.7%, >4h 佔 26.7%, >10h 為 0 筆; 分月中位數 07 月 2h03m -> 08 月 2h13m ->
-# 09 月 3h21m (延遲在惡化)。本檔原寫「常態延遲 1~2 小時」與實測不符, 2026-09-07 依上表更正。
+# 延遲實測 (2026-09-08 重算, 取代 09-07 那組「120 筆 / 中位數 3h02m / >10h 為 0 筆」——
+# 那組整組數字是錯的, 樣本漏抽 taiwan-flow-live-v2/daysummary.yml (cron 06:35Z, 家族內
+# 最早的 slot)。更正後樣本＝四支 workflow (taiwan-flows/daily.yml、postmkt/build.yml、
+# taiwan-flow-live-v2/daysummary.yml、taiwan-stock-news/build-news.yml) 2026-06-16~09-07
+# 共 187 筆 event:schedule run, created_at 減 cron 排定時刻:
+#   中位數 2h01m / p90 4h44m / 最大 12h23m; >4h 12.8%, >10h 2 筆(1.1%), >14h 0 筆。
+# 結構性事實: GitHub 的延遲是「絕對排空時刻」, 不是相對 slot 的固定倍數——2026-08-27/28
+# 全平台塞車時四支的 created_at 黏在同一段絕對時刻, 所以同一次事故下 slot 愈早、量到的
+# 「延遲」愈大, 「>10h 幾筆」取決於抽了哪些 workflow, 不是平台常數 (這正是上一輪出錯的
+# 機制); 也因此兜底班 (23:07) 在塞車事故中幾乎沒有保護力——排空時刻是絕對的, 主班與兜底
+# 只會前後腳一起被釋出。
+# 本檔自身樣本不足: walkforward.yml 只有 4 筆 event:schedule run (workflow 2026-09-03 才
+# 建立), 延遲 3h13m~5h06m、無一超過 6h; N=4 無法自證尾端, 尾端只能靠上述對照組推估。
 # index.html 的 ledgerStatus() 與跨站判級 (taiwan-flow-live-v2 Worker gradeBacktest、
-# claude-harness freshness_watchdog.judge_backtest) 的「資料缺漏」紅線即依此表定為
-# 主班+10 小時 (參考時鐘 19:07): 實測 120 筆無一超過, 且距腳本硬期限 (target=(now-12h),
-# 主班+14h53m 後參考日滾成隔天而永久漏記) 仍有近 5 小時餘裕。
+# claude-harness freshness_watchdog.judge_backtest) 的「資料缺漏」紅線定為主班+10 小時
+# (參考時鐘 19:07), 理由**不是**「>10h 從沒發生過」(該宣稱已被推翻), 而是: 把三支 13:xx
+# 班的 run 對同一 UTC 日 13:07Z 計延遲的**代理推估** (N=151, 推測、非本 workflow 直接觀測)
+# 誤報率約 2% (3 筆), 且那 3 筆全落在 08-27/28 單一次平台事故、延遲 9h51m~10h07m 正好騎在
+# 線上; 換得的是距腳本硬期限 (target=(now-12h), 主班+14h53m 後參考日滾成隔天而永久漏記)
+# 4h53m 的人工補救餘裕。對照: +4h (原門檻) 代理誤報 16.6%、+8h 4.0%、+12h 0% 但餘裕只剩
+# 2h53m。取樣限制: GitHub 只留 90 天 run 紀錄, 尾端只看得到 08-27/28 這一次事故,
+# 任何「最大＝X」都是這次事故的函數、不是平台上界; 家族內尚有約 10 支帶 cron 的 workflow
+# 未抽, 「>10h 2 筆」是下界不是全集。本檔原寫「常態延遲 1~2 小時」與實測不符, 已更正。
 # 腳本冪等: 同日已記帳即跳過; tick 未落地則本班放棄、由下一班或隔日補。
 name: walkforward
 on:
