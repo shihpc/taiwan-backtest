@@ -45,7 +45,7 @@
 
 小台（MTX）日內策略回測站：**回測研究（`scripts/`＋`output/`）＋獨立稽核（`audit/`）
 ＋每日模擬前推對帳（`walkforward/`）＋單檔靜態前端 `index.html`**，GitHub Pages 從 main root 服務。
-線上 https://shihpc.github.io/taiwan-backtest/ 。**2026-09-07 起納入受管 repo**（家族第六個 CANON 副本）。
+線上 https://shihpc.github.io/taiwan-backtest/ 。**2026-09-07 起納入受管 repo**（受管 repo 名單見 `claude-harness/tools/sync_canon.py` 的 `TARGET_REPOS`）。
 **站上一切績效數字都是模擬研究、不是投資建議**；現行策略 Playbook v3-SL 的完整脈絡見 `README.md`
 （頂部有「閱讀前必看：本文若干績效敘述已於 2026-09-05 稽核降級」導讀表），稽核原文見
 `audit/AUDIT-REPORT.md`、外部五年驗證見 `docs/FIVEYEAR-VALIDATION-CHATGPT.md`。
