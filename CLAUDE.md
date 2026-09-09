@@ -1,12 +1,14 @@
 # CLAUDE.md — taiwan-backtest 接手速覽
 
 <!-- CANON:BEGIN v1 -->
-<!-- 唯一事實來源＝shihpc/claude-harness 的 CANON.md。以下區塊在六個 repo 的 CLAUDE.md 頂端
+<!-- 唯一事實來源＝shihpc/claude-harness 的 CANON.md。以下區塊在家族各 repo 的 CLAUDE.md 頂端
      有 byte-identical 逐字副本，由各 repo 的 .github/workflows/canon.yml 守門（比對 sha256）。
-     改動流程：先改 claude-harness/CANON.md → 跑 tools/sync_canon.py 同步六份 → 更新守門 hash。
+     改動流程：先改 claude-harness/CANON.md → 跑 tools/sync_canon.py 同步全部副本 → 更新守門 hash。
+     **repo 名單以 tools/sync_canon.py 的 TARGET_REPOS 為準，此處刻意不寫死數量**——
+     數量已改過兩次（五→六→七），每改一次就得動全部 repo 的 CLAUDE.md 與守門 hash。
      不要只改單一 repo，CI 會擋下來。 -->
 
-## 通用工作鐵律（六個 repo 逐字相同，勿單獨修改）
+## 通用工作鐵律（家族各 repo 逐字相同，勿單獨修改）
 
 1. **機密**：token／金鑰只存在不受版控的本機設定或受控 secrets（`.env`／Actions secret／
    `wrangler secret`），絕不寫進會 commit 的檔案、log 或對話輸出。commit 前掃 staged 內容，
@@ -43,7 +45,7 @@
 
 小台（MTX）日內策略回測站：**回測研究（`scripts/`＋`output/`）＋獨立稽核（`audit/`）
 ＋每日模擬前推對帳（`walkforward/`）＋單檔靜態前端 `index.html`**，GitHub Pages 從 main root 服務。
-線上 https://shihpc.github.io/taiwan-backtest/ 。**2026-09-07 起納入受管 repo**（家族第六個 CANON 副本）。
+線上 https://shihpc.github.io/taiwan-backtest/ 。**2026-09-07 起納入受管 repo**（受管 repo 名單見 `claude-harness/tools/sync_canon.py` 的 `TARGET_REPOS`）。
 **站上一切績效數字都是模擬研究、不是投資建議**；現行策略 Playbook v3-SL 的完整脈絡見 `README.md`
 （頂部有「閱讀前必看：本文若干績效敘述已於 2026-09-05 稽核降級」導讀表），稽核原文見
 `audit/AUDIT-REPORT.md`、外部五年驗證見 `docs/FIVEYEAR-VALIDATION-CHATGPT.md`。
