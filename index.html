@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<!-- CSP 比照家族另四站(postmkt 樣式)收斂注入面；本站唯一網路請求是同源 CSV，connect-src 只留 'self'。
+     原本的 Cache-Control meta 對現代瀏覽器無效(taiwan-flow-live-v2 2026-09-06 判定)，已移除；
+     快取由 fetch(...,{cache:'no-store'})+?t= 時戳處理。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; connect-src 'self'">
 <title>策略回測</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f1620'/%3E%3Cpolyline points='2,11 6,7 9,10 14,4' fill='none' stroke='%234aa8ff' stroke-width='2'/%3E%3C/svg%3E">
 <style>
@@ -126,6 +129,10 @@ footer{color:var(--muted);font-size:11px;text-align:center;padding:14px;border-t
   <section id="sec-ledger">
     <div class="crumb"><b>前推對帳</b> <span class="mut">walkforward ledger（模擬、扣成本口徑同回測）</span></div>
     <div id="ledger"><div class="loading">載入中…</div></div>
+    <!-- 影子對照（2026-09-13 使用者裁定加入）：僅觀察比較、不影響正式策略；
+         載入失敗只影響本子區塊，不得波及正式帳冊渲染與頂列狀態。 -->
+    <div class="crumb"><b>影子對照帳冊</b> <span class="mut">1R 保本／1R 保本＋時間停損（<a href="https://github.com/shihpc/taiwan-backtest/blob/main/walkforward/SHADOW-SPEC.md" style="color:var(--accent)">規格</a>，2026-09-07 起，僅觀察、不影響正式策略；滿 60 出勤日才做第一次配對評估）</span></div>
+    <div id="shadow"><div class="loading">載入中…</div></div>
   </section>
 </main>
 <footer>資料源：FinMind ｜ 僅供研究</footer>
@@ -309,17 +316,110 @@ function renderLedger(rows){
   el.innerHTML=h;
 }
 
+// ---- 影子對照（僅觀察）：摘要對照表＋三線累積圖 ----
+function ledgerStats(rows){
+  var trades=rows.filter(function(r){return r.pnl_sim!==""&&isFinite(+r.pnl_sim);});
+  var tot=trades.reduce(function(s,r){return s+ +r.pnl_sim;},0);
+  var wins=trades.filter(function(r){return +r.pnl_sim>0;}).length;
+  var peak=0,cum=0;
+  rows.forEach(function(r){var c=+r.cum_pnl;if(r.cum_pnl!==""&&isFinite(c)){cum=c;if(c>peak)peak=c;}});
+  var hows={};
+  trades.forEach(function(r){var h=r.how||"?";hows[h]=(hows[h]||0)+1;});
+  return {n:trades.length,tot:tot,win:trades.length?Math.round(wins/trades.length*100):null,
+          cum:cum,dd:cum-peak,hows:hows};
+}
+function cumChartMulti(series){
+  // series: [{name,color,dates(升冪),cums}]; x 軸＝全體日期聯集(升冪)，各線各自從 0 起點接自己的首日
+  var all={};
+  series.forEach(function(s){s.dates.forEach(function(d){all[d]=1;});});
+  var axis=Object.keys(all).sort();
+  if(!axis.length)return"";
+  var xi={};axis.forEach(function(d,i){xi[d]=i+1;});   // 0 留給各線的起始 0
+  var W=900,H=220,padL=56,padR=14,padT=14,padB=22;
+  var vals=[0];
+  series.forEach(function(s){s.cums.forEach(function(v){vals.push(v);});});
+  var min=Math.min.apply(null,vals),max=Math.max.apply(null,vals);
+  if(min===max){min-=1;max+=1;}
+  var span=max-min;min-=span*0.08;max+=span*0.08;
+  var iw=W-padL-padR,ih=H-padT-padB,nx=axis.length;
+  function X(i){return padL+iw*i/nx;}
+  function Y(v){return padT+ih*(1-(v-min)/(max-min));}
+  var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="影子對照累積損益" preserveAspectRatio="xMidYMid meet">';
+  for(var i=0;i<=4;i++){
+    var v=min+(max-min)*i/4,y=Y(v).toFixed(1);
+    s+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="#1e2a38" stroke-width="1"/>';
+    s+='<text x="'+(padL-6)+'" y="'+(+y+4)+'" text-anchor="end" font-size="10" fill="#8b98a8">'+Math.round(v).toLocaleString("en-US")+'</text>';
+  }
+  if(min<0&&max>0)s+='<line x1="'+padL+'" y1="'+Y(0).toFixed(1)+'" x2="'+(W-padR)+'" y2="'+Y(0).toFixed(1)+'" stroke="#6b7888" stroke-width="1" stroke-dasharray="4 3"/>';
+  series.forEach(function(sr){
+    if(!sr.dates.length)return;
+    var pts=[[X(xi[sr.dates[0]]-1),Y(0)]];
+    sr.dates.forEach(function(d,i){pts.push([X(xi[d]),Y(sr.cums[i])]);});
+    s+='<polyline points="'+pts.map(function(p){return p[0].toFixed(1)+","+p[1].toFixed(1);}).join(" ")+
+       '" fill="none" stroke="'+sr.color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    var lp=pts[pts.length-1];
+    s+='<circle cx="'+lp[0].toFixed(1)+'" cy="'+lp[1].toFixed(1)+'" r="3" fill="'+sr.color+'"/>';
+  });
+  s+='<text x="'+(W-padR)+'" y="'+(H-6)+'" text-anchor="end" font-size="10" fill="#8b98a8">'+esc(axis[axis.length-1])+'</text>';
+  s+='</svg>';
+  var legend=series.map(function(sr){
+    return '<span style="color:'+sr.color+'">●</span> '+esc(sr.name);
+  }).join("　");
+  return '<div class="chartcard"><div class="note" style="margin-top:0">累積損益對照（點，各線含自身起始 0）　'+legend+'</div>'+s+'</div>';
+}
+function renderShadow(offRows,resA,resB){
+  var el=document.getElementById("shadow"); if(!el) return;
+  var defs=[{name:"正式 v3-SL",color:"#4aa8ff",rows:offRows},
+            {name:"影子A 1R保本",color:"#e0a63a",rows:resA},
+            {name:"影子B 1R保本+時停",color:"#b07aff",rows:resB}];
+  if(resA===null&&resB===null){
+    el.innerHTML='<div class="loading">影子帳冊載入失敗</div>';return;
+  }
+  var rowsHtml=defs.map(function(d){
+    if(d.rows===null)return '<tr><td class="l" style="color:'+d.color+'">'+esc(d.name)+'</td><td colspan="6" class="mut">載入失敗</td></tr>';
+    if(!d.rows.length)return '<tr><td class="l" style="color:'+d.color+'">'+esc(d.name)+'</td><td colspan="6" class="mut">尚無記錄</td></tr>';
+    var st=ledgerStats(d.rows);
+    var howTxt=Object.keys(st.hows).sort().map(function(k){return esc(k)+" "+st.hows[k];}).join("｜");
+    return '<tr><td class="l" style="color:'+d.color+'">'+esc(d.name)+'</td>'+
+      '<td>'+st.n+'</td><td>'+fmtPnl(st.tot)+'</td>'+
+      '<td>'+(st.win==null?"—":st.win+"%")+'</td><td>'+fmtPnl(st.cum)+'</td>'+
+      '<td>'+fmtN(st.dd)+'</td><td class="l">'+(howTxt||"—")+'</td></tr>';
+  }).join("");
+  var h='<div class="tablewrap"><table><thead><tr><th class="l">帳冊</th><th>出勤</th><th>總損益(點)</th><th>勝率</th><th>累積(點)</th><th>目前回落</th><th class="l">出場方式</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>';
+  var series=defs.filter(function(d){return d.rows&&d.rows.length;}).map(function(d){
+    var dd=[],cc=[];
+    d.rows.forEach(function(r){var c=+r.cum_pnl;if(r.cum_pnl!==""&&isFinite(c)&&/^\d{4}-\d{2}-\d{2}$/.test(r.date)){dd.push(r.date);cc.push(c);}});
+    return {name:d.name,color:d.color,dates:dd,cums:cc};
+  });
+  h+=cumChartMulti(series);
+  h+='<div class="note">影子帳冊與正式帳冊同訊號同進場，只有出場規則不同；差異全屬出場效果。以上為模擬觀察、非投資建議。</div>';
+  el.innerHTML=h;
+}
+
 // ---- 載入（同源相對路徑；失敗靜默降級為提示文字，不拋例外）----
-fetch('walkforward/ledger.csv?t='+Date.now(),{cache:'no-store'})
-  .then(function(r){return r.ok?r.text():Promise.reject(new Error("HTTP "+r.status));})
-  .then(function(t){
-    var rows=parseCsv(t);
+function loadCsv(path){
+  return fetch(path+'?t='+Date.now(),{cache:'no-store'})
+    .then(function(r){return r.ok?r.text():Promise.reject(new Error("HTTP "+r.status));})
+    .then(parseCsv);
+}
+var offP=loadCsv('walkforward/ledger.csv');
+offP
+  .then(function(rows){
     renderLedger(rows);
     renderTopline(rows.length?rows[rows.length-1].date:"");   // 空檔/欄位壞掉 -> 查詢失敗（未知）
   })
   .catch(function(){
     document.getElementById("ledger").innerHTML='<div class="loading">記錄載入失敗</div>';
     renderTopline("");   // 讀不到 CSV 不得靜默當成正常
+  });
+// 影子鏈與正式鏈分離：任一影子失敗只降級影子子區塊（正式帳冊照常渲染）
+Promise.allSettled([offP,
+                    loadCsv('walkforward/ledger_shadow_1rbe.csv'),
+                    loadCsv('walkforward/ledger_shadow_1rbe_ts.csv')])
+  .then(function(rs){
+    renderShadow(rs[0].status==="fulfilled"?rs[0].value:[],
+                 rs[1].status==="fulfilled"?rs[1].value:null,
+                 rs[2].status==="fulfilled"?rs[2].value:null);
   });
 </script>
 </body>
