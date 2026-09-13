@@ -9,7 +9,7 @@
 """
 import numpy as np
 
-TICK = 1.0  # MTX 最小升降單位假設(待以期交所官方規格佐證)
+TICK = 1.0  # MTX 最小升降單位=指數1點(期交所契約規格頁, 2026-09-13 查證)
 
 
 def signal_bucket(s):
