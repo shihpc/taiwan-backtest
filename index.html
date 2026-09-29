@@ -189,8 +189,8 @@ function fmtPct(v){var n=+v;return (v===""||v==null||!isFinite(n))?"—":(n>0?"+
 // 國定假日（2026-09-29 更新）：**後端已接家族行事曆**——walkforward_daily.py／shadow_daily.py
 // 經 walkforward/twse_holidays.py 讀 taiwan-flow-live-v2 的 data/twse_holidays.json，假日不記帳
 // （原本空手桶的假日會記一列「空手、0 損益」，2026-09-25 中秋那三列已刪）；行事曆讀不到則
-// fail-open 退回只排週末。**前端本函式仍只排週末**（家族行事曆批次二、本批未改）：假日隔晚
-// 帳冊停在前一交易日，頂列可能誤報一次「資料缺漏」，屬已知可接受。
+// fail-open 退回只排週末。**前端本函式仍只排週末**（家族行事曆批次二、本批未改）：假日隔晚起
+// 帳冊停在前一交易日，頂列會顯示「資料缺漏」直到下一個交易日記帳為止（週五假日會跨整個週末），屬已知可接受。
 // 「查詢失敗（未知）」＝不知道資料好壞，不是資料異常，故用中性灰不用紅。
 function twNow(){ return new Date().toLocaleString("sv-SE",{timeZone:"Asia/Taipei"}); } // "YYYY-MM-DD HH:MM:SS"
 function shiftHours(s,h){
