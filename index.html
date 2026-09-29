@@ -189,18 +189,44 @@ function fmtPct(v){var n=+v;return (v===""||v==null||!isFinite(n))?"—":(n>0?"+
 // 國定假日（2026-09-29 更新）：**後端已接家族行事曆**——walkforward_daily.py／shadow_daily.py
 // 經 walkforward/twse_holidays.py 讀 taiwan-flow-live-v2 的 data/twse_holidays.json，假日不記帳
 // （原本空手桶的假日會記一列「空手、0 損益」，2026-09-25 中秋那三列已刪）；行事曆讀不到則
-// fail-open 退回只排週末。**前端本函式仍只排週末**（家族行事曆批次二、本批未改）：假日隔晚起
-// 帳冊停在前一交易日，頂列會顯示「資料缺漏」直到下一個交易日記帳為止（週五假日會跨整個週末），屬已知可接受。
+// fail-open 退回只排週末。**前端本函式 2026-09-29（批次二）起亦接行事曆**：同源相對路徑讀
+// ../taiwan-flow-live-v2/data/twse_holidays.json（非阻塞，載入成功才重繪頂列一次），refDay 為休市日時比照週末分支
+// （帳冊 ≥ 上一交易日即「休市定格」），「上一交易日」跳過週末與休市日——與 Worker gradeBacktest、看門狗
+// judge_backtest 同一語意；三個門檻數值（回推 12h／09:07／19:07）一字未動。行事曆讀不到／壞檔／年度未涵蓋
+// → fail-open 只排週末＝改動前行為（假日隔晚起顯示「資料缺漏」直到下一個交易日記帳為止）。
 // 「查詢失敗（未知）」＝不知道資料好壞，不是資料異常，故用中性灰不用紅。
 function twNow(){ return new Date().toLocaleString("sv-SE",{timeZone:"Asia/Taipei"}); } // "YYYY-MM-DD HH:MM:SS"
 function shiftHours(s,h){
   var t=Date.parse(s.slice(0,10)+"T"+s.slice(11,19)+"Z");
   return new Date(t+h*3600e3).toISOString().slice(0,19).replace("T"," ");
 }
+// ---- 家族休市行事曆（規格 taiwan-flow-live-v2/docs/holiday-calendar.md §1／§2／§5b）----
+// fail-open：讀不到／非 2xx／壞檔／schema 不是整數 1（true 不收）／years 無合法年度 → HOL=null＝只排週末。
+// 某年不在 years＝該年未知、只排週末。同規則另有 postmkt／taiwan-flows 前端與 Worker parseHolidayCal 各一份。
+var HOL_URL="../taiwan-flow-live-v2/data/twse_holidays.json";
+var HOL=null;   // {years:{年:true}, closed:{日期:true}, names:{}}；null＝未載入或 fail-open
+function holParse(j){
+  if(!j||typeof j!=="object"||j.schema!==1||!Array.isArray(j.years)||!Array.isArray(j.closed)) return null;
+  var years={},ny=0,closed={};
+  j.years.forEach(function(y){ if(Number.isInteger(y)&&y>=2000&&y<=2100){ if(!years[y])ny++; years[y]=true; } });
+  if(!ny) return null;
+  j.closed.forEach(function(d){ if(typeof d==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(d)) closed[d]=true; });
+  return {years:years,closed:closed,names:(j.names&&typeof j.names==="object")?j.names:{}};
+}
+function holClosed(d){
+  return !!HOL&&typeof d==="string"&&HOL.years[+d.slice(0,4)]===true&&HOL.closed[d]===true;
+}
+function holLoad(){
+  return fetch(HOL_URL,{cache:'no-cache'}).then(function(r){return r.ok?r.json():null;})
+    .then(function(j){ HOL=holParse(j); return !!HOL; })
+    .catch(function(){ HOL=null; return false; });
+}
+// 上一交易日（跳過週末與休市日；HOL=null 時只排週末＝舊行為）。函式名沿用舊名以免牽動呼叫端。
 function prevWeekday(d){
-  var t=Date.parse(d+"T00:00:00Z"),g;
-  do{ t-=864e5; g=new Date(t).getUTCDay(); }while(g===0||g===6);
-  return new Date(t).toISOString().slice(0,10);
+  var t=Date.parse(d+"T00:00:00Z"),g,i=0,s;
+  do{ t-=864e5; g=new Date(t).getUTCDay(); s=new Date(t).toISOString().slice(0,10); }
+  while((g===0||g===6||holClosed(s))&&++i<60);   // 60 天防呆
+  return s;
 }
 function isWeekend(d){ var g=new Date(d+"T00:00:00Z").getUTCDay(); return g===0||g===6; }
 function ledgerStatus(lastDate, nowStr){
@@ -208,10 +234,10 @@ function ledgerStatus(lastDate, nowStr){
     return {txt:"查詢失敗（未知）",cls:"st-mut",
       title:"帳冊 walkforward/ledger.csv 讀不到或格式不合——不知道資料好壞，不代表資料異常"};
   var ref=shiftHours(nowStr||twNow(),-12), refDay=ref.slice(0,10), hm=ref.slice(11,16);
-  if(isWeekend(refDay)){
+  if(isWeekend(refDay)||holClosed(refDay)){
     var fri=prevWeekday(refDay);
     return lastDate>=fri
-      ? {txt:"休市定格",cls:"st-mut",title:"週末非交易日，帳冊停在最近交易日 "+lastDate}
+      ? {txt:"休市定格",cls:"st-mut",title:(isWeekend(refDay)?"週末":(HOL.names[refDay]||"國定假日")+"（行事曆休市日）")+"非交易日，帳冊停在最近交易日 "+lastDate}
       : {txt:"資料缺漏",cls:"st-bad",title:"最近交易日 "+fri+" 應有記錄，帳冊只到 "+lastDate};
   }
   if(lastDate>=refDay) return {txt:"正常",cls:"st-ok",title:"帳冊已記到參考交易日 "+refDay};
@@ -225,7 +251,9 @@ function ledgerStatus(lastDate, nowStr){
   return {txt:"資料缺漏",cls:"st-bad",
     title:refDay+" 的兩班（台北 21:07／23:07）加緩衝（主班+10 小時）均已過，帳冊仍停在 "+lastDate};
 }
+var TOP_LAST;   // 最近一次頂列用的 lastDate（undefined＝帳冊尚未載入，行事曆先到時不搶先渲染）
 function renderTopline(lastDate){
+  TOP_LAST=lastDate;
   var el=document.getElementById("topline"); if(!el) return;
   var st=ledgerStatus(lastDate);
   el.innerHTML='資料日 <b>'+esc(lastDate?lastDate:"—")+'</b>｜狀態 <b class="'+st.cls+'" title="'+
@@ -405,7 +433,12 @@ function loadCsv(path){
     .then(function(r){return r.ok?r.text():Promise.reject(new Error("HTTP "+r.status));})
     .then(parseCsv);
 }
+// 休市行事曆：非阻塞；載入成功且頂列已渲染過才重繪一次（失敗不動畫面＝改動前行為）
+var holP=holLoad();
 var offP=loadCsv('walkforward/ledger.csv');
+Promise.allSettled([holP,offP]).then(function(rs){
+  if(rs[0].status==="fulfilled"&&rs[0].value===true&&TOP_LAST!==undefined) renderTopline(TOP_LAST);
+});
 offP
   .then(function(rows){
     renderLedger(rows);

@@ -54,8 +54,9 @@
 
 - `index.html`（單檔、CSS/JS 內嵌，**無 build 工具**）：三個區塊 `id="sec-backtest"`（回測驗證，
   內含 `id="sec-credibility"` 降級卡與 `id="sec-audit"` 稽核摘要卡）／`id="sec-params"`（策略參數表）／
-  `id="sec-ledger"`（前推對帳，`renderLedger` 產出）。**唯一的網路請求是同源
-  `fetch('walkforward/ledger.csv?t='+Date.now(),{cache:'no-store'})`**——不打任何外部 API，
+  `id="sec-ledger"`（前推對帳，`renderLedger` 產出）。**網路請求全為同源**：`loadCsv()` 讀三份帳冊
+  （`walkforward/ledger.csv`＋兩份影子，`?t=` 時戳＋`cache:'no-store'`）＋`holLoad()` 讀家族休市行事曆
+  `../taiwan-flow-live-v2/data/twse_holidays.json`（2026-09-29 起）——不打任何外部 API，
   也**沒有**家族另四站的 `loadSiteVer()`／`callClaude`／`mdToHtml`／`ghSaveAnalysis` 等跨站同步碼
   （2026-09-07 全 repo grep 零命中），所以**不納入 `claude-harness/tools/check_sync.py`**。
   動態值一律過 `function esc(s)` 才進 `innerHTML`。
@@ -135,7 +136,7 @@
 - **這個門檻有三份實作，改一處要改三處**：本站 `index.html` 的 `ledgerStatus`、
   `taiwan-flow-live-v2/worker/src/index.js` 的 `gradeBacktest`、
   `claude-harness/tools/freshness_watchdog.py` 的 `BACKTEST_MISSING_FROM`。
-- `refDay` 為週末＝**休市定格**（帳冊 ≥ 上一個平日即可）；落後一個交易日以上一律**資料缺漏**。
+- `refDay` 為週末或家族行事曆休市日（2026-09-29 起，讀不到時只排週末）＝**休市定格**（帳冊 ≥ 上一交易日即可）；落後一個交易日以上一律**資料缺漏**。
 - **CSV 讀不到或最後一列日期格式不合＝「查詢失敗（未知）」，用中性灰 `st-mut` 不用紅**
   ——「未知」是不知道資料好壞，**不是**資料異常。這是家族共通約定（入口站 `showStatusFail()`、
   taiwan-flows `siteStatus()` 同語意），**不可為了畫面好看改成綠色或靜默**。
@@ -167,9 +168,8 @@
 
 - `index.html` 仍留著 `<meta http-equiv="Cache-Control" ...>`——taiwan-flow-live-v2 已於 2026-09-06
   判定這類 meta 對現代瀏覽器無效並移除（見該 repo CLAUDE.md「CSP 與注入面」段），本站尚未跟進。
-- **本站沒有 CSP meta**（家族另四站 index.html 都有 `<meta http-equiv="Content-Security-Policy">`）。
-  現況注入面很小（唯一 fetch 是同源自家 CSV、動態值全過 `esc()`、無外連 script），但這是「還沒做」，
-  不是「不需要」。
+- ~~本站沒有 CSP meta~~（**2026-09-29 實查更正：已有**——`index.html` 頂端 `<meta http-equiv="Content-Security-Policy">`，
+  `connect-src 'self'`；本段原文為過期敘述）。fetch 全為同源：三份帳冊 CSV＋休市行事曆 JSON，動態值全過 `esc()`、無外連 script。
 - **國定假日（2026-09-29 起後端已處理，使用者裁決）**：`walkforward_daily.py`／`shadow_daily.py`
   判定 target 後、任何 API 呼叫前，經 `walkforward/twse_holidays.py` 讀家族行事曆
   `taiwan-flow-live-v2/data/twse_holidays.json`（raw main，逾時 10 秒；規格正本
@@ -177,11 +177,17 @@
   不記帳（與週末同一條路）。**fail-open**：讀不到／壞檔／schema 不是整數 1／年度不在 `years` →
   印 `::warning::` 後照舊只排週末（假日會像以前一樣：空手桶記一列、非空手桶因抓不到 tick 不記）。
   2026-09-25（中秋）三份帳冊原已記的「空手、0 損益」列已刪（`ledger_v3_nostop.csv` 本無該列）。
-  **前端 `ledgerStatus` 仍只排週末**（家族批次二、未改）：假日隔晚起頂列會顯示「資料缺漏」，
-  **一路持續到下一個交易日記帳為止**（例：週五假日 09-25 → 09-26 起經整個週末到 09-29 那列寫入），屬已知可接受。
-  行事曆讀不到（fail-open）時，看門狗與 Worker `/status` 同樣會從假日隔天起判 STALE／red，理由相同。颱風臨時停市 TWSE 事後才補進行事曆，當天仍可能記一列空手。
-- 測試**不是 pytest 套件、也沒有任何 CI 在跑**：`walkforward/test_shadow.py`、`walkforward/test_holidays.py` 與 `audit/tests_audit.py`
-  是三支獨立可執行的離線腳本（免 token 免網路），要靠人手動跑。
+  **前端 `ledgerStatus` 2026-09-29（家族批次二，規格 `taiwan-flow-live-v2/docs/holiday-calendar.md` §5b）起亦接行事曆**：
+  `index.html` 以同源相對路徑 `../taiwan-flow-live-v2/data/twse_holidays.json` 非阻塞讀取（`holLoad`，CSP
+  `connect-src 'self'` 已涵蓋、未改），帳冊與行事曆都到後若行事曆成功才重繪頂列一次。`refDay` 為休市日時**比照週末分支**
+  （帳冊 ≥ 上一交易日＝「休市定格」），`prevWeekday`（沿用舊名）跳過週末與休市日——與 Worker `gradeBacktest`、看門狗
+  `judge_backtest` 同一語意；**三個門檻數值（回推 12h／09:07／19:07）一字未動**（`check_backtest_thresholds.py` PASS）。
+  **fail-open**：讀不到／非 2xx／壞檔／`schema` 不是整數 1（`true` 不收）／`years` 無合法年度 → `HOL=null`＝只排週末＝
+  改動前行為：假日隔晚起頂列顯示「資料缺漏」，一路持續到下一個交易日記帳為止（例：週五假日 09-25 → 09-26 起經整個週末
+  到 09-29 那列寫入）。Playwright 以行事曆 404 對跑 origin/main，頁面 innerHTML（去 script）逐字相同。
+  行事曆讀不到時，看門狗與 Worker `/status` 同樣會從假日隔天起判 STALE／red，理由相同。颱風臨時停市 TWSE 事後才補進行事曆，當天仍可能記一列空手。
+- 測試**不是 pytest 套件、也沒有任何 CI 在跑**：`walkforward/test_shadow.py`、`walkforward/test_holidays.py`、`audit/tests_audit.py` 與 node 腳本 `test_frontend_holidays.mjs`
+  是四支獨立可執行的離線腳本（免 token 免網路），要靠人手動跑。
 
 ## 驗證方式
 
@@ -189,6 +195,7 @@
 python3 walkforward/test_shadow.py   # 影子出場模擬離線單元測試（免 token 免網路）
 python3 walkforward/test_holidays.py # 國定假日判定＋兩支 main 的跳過路徑（假行事曆注入，免 token 免網路）
 python3 audit/tests_audit.py         # 稽核引擎回歸測試（免 token 免網路；pytest 亦可）
+node test_frontend_holidays.mjs      # 前端 ledgerStatus 接休市行事曆＋fail-open 與改動前逐字相同（抽 index.html 函式，免網路）
 python3 -m http.server 8000          # 前端本機驗證：三區塊渲染、頂列狀態、console 零 error
 ```
 
