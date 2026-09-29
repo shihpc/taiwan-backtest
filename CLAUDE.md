@@ -62,7 +62,8 @@
 - `walkforward/`：**唯一每日會跑的東西**。`walkforward_daily.py`（正式帳冊 `ledger.csv`，規則
   v3-SL，2026-09-04 定版、註解自述「不得回頭改」；舊無停損版封存於 `ledger_v3_nostop.csv`）＋
   `shadow_daily.py`（影子對照帳冊 `ledger_shadow_1rbe.csv`／`ledger_shadow_1rbe_ts.csv`，規格
-  `SHADOW-SPEC.md`，首日 2026-09-07，**只觀察不影響正式策略**）＋離線測試 `test_shadow.py`。
+  `SHADOW-SPEC.md`，首日 2026-09-07，**只觀察不影響正式策略**）＋離線測試 `test_shadow.py`
+  ＋共用模組 `twse_holidays.py`（國定假日判定，兩支腳本共用）與其離線測試 `test_holidays.py`。
 - `scripts/`：`analysis2.py`~`analysis19_bracket.py` 的研究腳本序列（全程留檔，刻意保留挖掘軌跡）
   ＋ `fetch_*.py`／`mtx_range_fade_backtest.py` 取數腳本（需 `FINMIND_TOKEN` Sponsor）。
 - `output/`：上述腳本的結果 CSV（`v2_results.csv`…`v18_bracket_modern.csv` 等）。
@@ -93,7 +94,8 @@
   2026-09-07 已依實測更正。**
 - **目標日口徑**：`walkforward_daily.py` 的 `target = (now - dt.timedelta(hours=12)).date()`
   ——台北 `hour<12` 回推一天，與 `taiwan-flows` 的 `target_trading_day()` 同一套。
-  `if target.weekday() >= 5` 週末跳過；**冪等**（同日已在 `ledger.csv` 即 return）；
+  非交易日跳過（`twse_holidays.skip_reason`：週末 ∪ 家族行事曆國定假日，見下方「已知限制」）；
+  **冪等**（同日已在 `ledger.csv` 即 return）；
   tick／SOX 未落地 → 正常結束（exit 0），由下一班或隔日補。
 - **無 Worker 主觸發**：家族其他管線多由 taiwan-flow-live-v2 的 Worker 哨兵 dispatch，本 repo
   兩班都是 GH cron 自跑（`docs/schedule-map.md` 的 taiwan-backtest 節即此二條）。
@@ -168,15 +170,23 @@
 - **本站沒有 CSP meta**（家族另四站 index.html 都有 `<meta http-equiv="Content-Security-Policy">`）。
   現況注入面很小（唯一 fetch 是同源自家 CSV、動態值全過 `esc()`、無外連 script），但這是「還沒做」，
   不是「不需要」。
-- `walkforward_daily.py` **只擋週末、不擋國定假日**（repo 無行事曆來源，與家族另四站同立場）：
-  假日當晚頂列可能誤報一次「資料缺漏」，反向誤差是空手桶的假日仍可能記一列。兩者皆為已知可接受。
-- 測試**不是 pytest 套件、也沒有任何 CI 在跑**：`walkforward/test_shadow.py` 與 `audit/tests_audit.py`
-  是兩支獨立可執行的離線腳本（免 token 免網路），要靠人手動跑。
+- **國定假日（2026-09-29 起後端已處理，使用者裁決）**：`walkforward_daily.py`／`shadow_daily.py`
+  判定 target 後、任何 API 呼叫前，經 `walkforward/twse_holidays.py` 讀家族行事曆
+  `taiwan-flow-live-v2/data/twse_holidays.json`（raw main，逾時 10 秒；規格正本
+  `taiwan-flow-live-v2/docs/holiday-calendar.md`），假日印「<date> 國定假日（<名稱>），跳過」、exit 0、
+  不記帳（與週末同一條路）。**fail-open**：讀不到／壞檔／schema 不是整數 1／年度不在 `years` →
+  印 `::warning::` 後照舊只排週末（假日會像以前一樣：空手桶記一列、非空手桶因抓不到 tick 不記）。
+  2026-09-25（中秋）三份帳冊原已記的「空手、0 損益」列已刪（`ledger_v3_nostop.csv` 本無該列）。
+  **前端 `ledgerStatus` 仍只排週末**（家族批次二、未改）：假日隔晚頂列可能誤報一次「資料缺漏」，
+  屬已知可接受。颱風臨時停市 TWSE 事後才補進行事曆，當天仍可能記一列空手。
+- 測試**不是 pytest 套件、也沒有任何 CI 在跑**：`walkforward/test_shadow.py`、`walkforward/test_holidays.py` 與 `audit/tests_audit.py`
+  是三支獨立可執行的離線腳本（免 token 免網路），要靠人手動跑。
 
 ## 驗證方式
 
 ```bash
 python3 walkforward/test_shadow.py   # 影子出場模擬離線單元測試（免 token 免網路）
+python3 walkforward/test_holidays.py # 國定假日判定＋兩支 main 的跳過路徑（假行事曆注入，免 token 免網路）
 python3 audit/tests_audit.py         # 稽核引擎回歸測試（免 token 免網路；pytest 亦可）
 python3 -m http.server 8000          # 前端本機驗證：三區塊渲染、頂列狀態、console 零 error
 ```

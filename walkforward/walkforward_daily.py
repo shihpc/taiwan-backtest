@@ -13,6 +13,7 @@ Playbook v3 前推對帳 — 每日模擬記帳
   (2026-09-03/04 兩列為舊 13:45 口徑, 不回改; 稽核 AUDIT-REPORT P1 節)。
   目標日: 台北時間 hour<12 回推一天(防 cron 延遲跨午夜, 同 taiwan-flows target_trading_day)。
   資料未落地/非交易日 -> 正常結束(exit 0), 由下一班或隔日補。
+  非交易日 = 週末 ∪ 家族行事曆國定假日(twse_holidays.py, 2026-09-29 起; 讀不到則只排週末)。
 """
 import csv
 import os
@@ -23,6 +24,9 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
+
+sys.path.insert(0, str(Path(__file__).parent))
+from twse_holidays import skip_reason  # noqa: E402
 
 API = "https://api.finmindtrade.com/api/v4/data"
 TOKEN = os.environ.get("FINMIND_TOKEN", "")
@@ -41,13 +45,16 @@ def api_get(params):
         sys.exit(f"API 失敗: {j.get('msg')}")
     return j.get("data", [])
 
-def main():
+def main(now=None, holiday_fetch=None):
+    # now／holiday_fetch 只供離線測試注入; 生產呼叫仍是 main()
     if not TOKEN:
         sys.exit("需要 FINMIND_TOKEN")
-    now = dt.datetime.now(ZoneInfo("Asia/Taipei"))
+    now = now or dt.datetime.now(ZoneInfo("Asia/Taipei"))
     target = (now - dt.timedelta(hours=12)).date()  # hour<12 -> 前一天
-    if target.weekday() >= 5:
-        print(f"{target} 週末, 跳過"); return
+    # 非交易日(週末 ∪ 家族行事曆國定假日)一律跳過、不記帳; 行事曆讀不到則只排週末(fail-open)
+    skip = skip_reason(target, holiday_fetch)
+    if skip:
+        print(skip); return
     tstr = str(target)
 
     rows = []

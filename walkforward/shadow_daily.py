@@ -4,7 +4,8 @@
   影子 A: v3-SL + 1R 保本            -> ledger_shadow_1rbe.csv
   影子 B: v3-SL + 1R 保本 + 時間停損 -> ledger_shadow_1rbe_ts.csv
   訊號/進場/成本/口徑與 walkforward_daily.py 逐字同語意; 正式帳冊完全不碰。
-  掛在 walkforward.yml 正式記帳 commit 之後; 冪等(同日已記帳跳過)。"""
+  掛在 walkforward.yml 正式記帳 commit 之後; 冪等(同日已記帳跳過)。
+  非交易日判定與正式帳冊共用 twse_holidays.skip_reason(週末 ∪ 國定假日, fail-open)。"""
 import csv
 import os
 import sys
@@ -14,6 +15,9 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 import requests
+
+sys.path.insert(0, str(Path(__file__).parent))
+from twse_holidays import skip_reason  # noqa: E402
 
 API = "https://api.finmindtrade.com/api/v4/data"
 TOKEN = os.environ.get("FINMIND_TOKEN", "")
@@ -90,13 +94,16 @@ def api_get(params):
     return j.get("data", [])
 
 
-def main():
+def main(now=None, holiday_fetch=None):
+    # now／holiday_fetch 只供離線測試注入; 生產呼叫仍是 main()
     if not TOKEN:
         sys.exit("需要 FINMIND_TOKEN")
-    now = dt.datetime.now(ZoneInfo("Asia/Taipei"))
+    now = now or dt.datetime.now(ZoneInfo("Asia/Taipei"))
     target = (now - dt.timedelta(hours=12)).date()
-    if target.weekday() >= 5:
-        print(f"{target} 週末, 跳過"); return
+    # 非交易日(週末 ∪ 家族行事曆國定假日)一律跳過、不記帳; 行事曆讀不到則只排週末(fail-open)
+    skip = skip_reason(target, holiday_fetch)
+    if skip:
+        print(skip); return
     tstr = str(target)
 
     ledger_rows = {}
