@@ -1,0 +1,3 @@
+# 價格快取可由 FinMind 重抓，不進 git；私人帳務（IBKR Flex／券商庫存）一律放 AISC_PRIVATE_DIR、不在 repo 內
+prices/
+*.parquet

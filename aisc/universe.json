@@ -1,0 +1,495 @@
+{
+ "version": "v1-117",
+ "frozen_at": "2026-10-02",
+ "note": "候選池凍結於規格 v2 §2：台股 93 檔＋美股 24 檔＝117。台股清單取自 postmkt data/screen/screen.json（date 2026-10-02、min_feps 20、n 93，commit c612afd），含規格點名的緯穎／金像電／智邦／台積電／奇鋐／台光電；是否與 v1 回測的 93 檔逐檔相同待使用者確認。候選池增減須記錄日期與理由（§2）。",
+ "changes": [
+  {
+   "date": "2026-10-02",
+   "reason": "初始凍結（Phase 0）"
+  }
+ ],
+ "benchmarks": {
+  "TW": {
+   "dataset": "TaiwanStockPrice",
+   "data_id": "TAIEX",
+   "name": "加權指數"
+  },
+  "US": {
+   "dataset": "USStockPrice",
+   "data_id": "^SOX",
+   "name": "費城半導體指數"
+  }
+ },
+ "TW": [
+  {
+   "code": "1476",
+   "name": "儒鴻"
+  },
+  {
+   "code": "1590",
+   "name": "亞德客-KY"
+  },
+  {
+   "code": "2059",
+   "name": "川湖"
+  },
+  {
+   "code": "2207",
+   "name": "和泰車"
+  },
+  {
+   "code": "2247",
+   "name": "汎德永業"
+  },
+  {
+   "code": "2308",
+   "name": "台達電"
+  },
+  {
+   "code": "2330",
+   "name": "台積電"
+  },
+  {
+   "code": "2344",
+   "name": "華邦電"
+  },
+  {
+   "code": "2345",
+   "name": "智邦"
+  },
+  {
+   "code": "2357",
+   "name": "華碩"
+  },
+  {
+   "code": "2360",
+   "name": "致茂"
+  },
+  {
+   "code": "2368",
+   "name": "金像電"
+  },
+  {
+   "code": "2376",
+   "name": "技嘉"
+  },
+  {
+   "code": "2379",
+   "name": "瑞昱"
+  },
+  {
+   "code": "2382",
+   "name": "廣達"
+  },
+  {
+   "code": "2383",
+   "name": "台光電"
+  },
+  {
+   "code": "2395",
+   "name": "研華"
+  },
+  {
+   "code": "2404",
+   "name": "漢唐"
+  },
+  {
+   "code": "2408",
+   "name": "南亞科"
+  },
+  {
+   "code": "2451",
+   "name": "創見"
+  },
+  {
+   "code": "2454",
+   "name": "聯發科"
+  },
+  {
+   "code": "2603",
+   "name": "長榮"
+  },
+  {
+   "code": "3006",
+   "name": "晶豪科"
+  },
+  {
+   "code": "3008",
+   "name": "大立光"
+  },
+  {
+   "code": "3017",
+   "name": "奇鋐"
+  },
+  {
+   "code": "3034",
+   "name": "聯詠"
+  },
+  {
+   "code": "3036",
+   "name": "文曄"
+  },
+  {
+   "code": "3037",
+   "name": "欣興"
+  },
+  {
+   "code": "3044",
+   "name": "健鼎"
+  },
+  {
+   "code": "3131",
+   "name": "弘塑"
+  },
+  {
+   "code": "3135",
+   "name": "凌航"
+  },
+  {
+   "code": "3147",
+   "name": "大綜"
+  },
+  {
+   "code": "3260",
+   "name": "威剛"
+  },
+  {
+   "code": "3293",
+   "name": "鈊象"
+  },
+  {
+   "code": "3324",
+   "name": "雙鴻"
+  },
+  {
+   "code": "3406",
+   "name": "玉晶光"
+  },
+  {
+   "code": "3413",
+   "name": "京鼎"
+  },
+  {
+   "code": "3443",
+   "name": "創意"
+  },
+  {
+   "code": "3526",
+   "name": "凡甲"
+  },
+  {
+   "code": "3529",
+   "name": "力旺"
+  },
+  {
+   "code": "3533",
+   "name": "嘉澤"
+  },
+  {
+   "code": "3563",
+   "name": "牧德"
+  },
+  {
+   "code": "3583",
+   "name": "辛耘"
+  },
+  {
+   "code": "3617",
+   "name": "碩天"
+  },
+  {
+   "code": "3653",
+   "name": "健策"
+  },
+  {
+   "code": "3661",
+   "name": "世芯-KY"
+  },
+  {
+   "code": "3665",
+   "name": "貿聯-KY"
+  },
+  {
+   "code": "4766",
+   "name": "南寶"
+  },
+  {
+   "code": "4966",
+   "name": "譜瑞-KY"
+  },
+  {
+   "code": "5269",
+   "name": "祥碩"
+  },
+  {
+   "code": "5274",
+   "name": "信驊"
+  },
+  {
+   "code": "5289",
+   "name": "宜鼎"
+  },
+  {
+   "code": "5434",
+   "name": "崇越"
+  },
+  {
+   "code": "5536",
+   "name": "聖暉"
+  },
+  {
+   "code": "6121",
+   "name": "新普"
+  },
+  {
+   "code": "6139",
+   "name": "亞翔"
+  },
+  {
+   "code": "6187",
+   "name": "萬潤"
+  },
+  {
+   "code": "6196",
+   "name": "帆宣"
+  },
+  {
+   "code": "6223",
+   "name": "旺矽"
+  },
+  {
+   "code": "6274",
+   "name": "台燿"
+  },
+  {
+   "code": "6409",
+   "name": "旭隼"
+  },
+  {
+   "code": "6414",
+   "name": "樺漢"
+  },
+  {
+   "code": "6442",
+   "name": "光聖"
+  },
+  {
+   "code": "6446",
+   "name": "藥華藥"
+  },
+  {
+   "code": "6488",
+   "name": "環球晶"
+  },
+  {
+   "code": "6491",
+   "name": "晶碩"
+  },
+  {
+   "code": "6510",
+   "name": "精測"
+  },
+  {
+   "code": "6515",
+   "name": "穎崴"
+  },
+  {
+   "code": "6526",
+   "name": "達發"
+  },
+  {
+   "code": "6640",
+   "name": "均華"
+  },
+  {
+   "code": "6669",
+   "name": "緯穎"
+  },
+  {
+   "code": "6670",
+   "name": "復盛應用"
+  },
+  {
+   "code": "6683",
+   "name": "雍智科技"
+  },
+  {
+   "code": "6691",
+   "name": "洋基工程"
+  },
+  {
+   "code": "6781",
+   "name": "AES-KY"
+  },
+  {
+   "code": "6805",
+   "name": "富世達"
+  },
+  {
+   "code": "6894",
+   "name": "衛司特"
+  },
+  {
+   "code": "6903",
+   "name": "巨漢"
+  },
+  {
+   "code": "6944",
+   "name": "兆聯實業"
+  },
+  {
+   "code": "7711",
+   "name": "永擎"
+  },
+  {
+   "code": "7734",
+   "name": "印能科技"
+  },
+  {
+   "code": "7744",
+   "name": "崴寶"
+  },
+  {
+   "code": "7750",
+   "name": "新代"
+  },
+  {
+   "code": "7751",
+   "name": "竑騰"
+  },
+  {
+   "code": "7769",
+   "name": "鴻勁"
+  },
+  {
+   "code": "7822",
+   "name": "倍利科"
+  },
+  {
+   "code": "8016",
+   "name": "矽創"
+  },
+  {
+   "code": "8210",
+   "name": "勤誠"
+  },
+  {
+   "code": "8271",
+   "name": "宇瞻"
+  },
+  {
+   "code": "8299",
+   "name": "群聯"
+  },
+  {
+   "code": "8464",
+   "name": "億豐"
+  },
+  {
+   "code": "8478",
+   "name": "東哥遊艇"
+  },
+  {
+   "code": "8996",
+   "name": "高力"
+  }
+ ],
+ "US": [
+  {
+   "code": "MU",
+   "name": "MU"
+  },
+  {
+   "code": "CRDO",
+   "name": "CRDO"
+  },
+  {
+   "code": "VRT",
+   "name": "VRT"
+  },
+  {
+   "code": "AVGO",
+   "name": "AVGO"
+  },
+  {
+   "code": "NVDA",
+   "name": "NVDA"
+  },
+  {
+   "code": "COHR",
+   "name": "COHR"
+  },
+  {
+   "code": "ANET",
+   "name": "ANET"
+  },
+  {
+   "code": "AMD",
+   "name": "AMD"
+  },
+  {
+   "code": "TSM",
+   "name": "TSM"
+  },
+  {
+   "code": "ASML",
+   "name": "ASML"
+  },
+  {
+   "code": "AMAT",
+   "name": "AMAT"
+  },
+  {
+   "code": "LRCX",
+   "name": "LRCX"
+  },
+  {
+   "code": "KLAC",
+   "name": "KLAC"
+  },
+  {
+   "code": "MRVL",
+   "name": "MRVL"
+  },
+  {
+   "code": "QCOM",
+   "name": "QCOM"
+  },
+  {
+   "code": "INTC",
+   "name": "INTC"
+  },
+  {
+   "code": "TXN",
+   "name": "TXN"
+  },
+  {
+   "code": "ADI",
+   "name": "ADI"
+  },
+  {
+   "code": "ON",
+   "name": "ON"
+  },
+  {
+   "code": "MPWR",
+   "name": "MPWR"
+  },
+  {
+   "code": "SMCI",
+   "name": "SMCI"
+  },
+  {
+   "code": "DELL",
+   "name": "DELL"
+  },
+  {
+   "code": "HPE",
+   "name": "HPE"
+  },
+  {
+   "code": "ALAB",
+   "name": "ALAB"
+  }
+ ]
+}
