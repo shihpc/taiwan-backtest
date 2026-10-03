@@ -118,6 +118,42 @@ def test_normalize_us_adjusts_ohlc():
     assert D.normalize(pd.DataFrame(), "TW").empty
 
 
+def test_clean_drops_zero_volume_and_clips_open():
+    df = _df([100.0, 101.0, 102.0, 103.0])
+    df.loc[1, "volume"] = 0                     # 非交易佔位列
+    df.loc[2, "open"] = 180.0                   # open 超出 [low, high]
+    out = D.clean(df)
+    assert len(out) == 3 and "2021-01-05" not in set(out["date"])
+    row = out[out["date"] == "2021-01-06"].iloc[0]
+    assert row["low"] <= row["open"] <= row["high"] and np.isclose(row["open"], row["high"])
+    assert np.isclose(row["close"], 102.0)      # 只動 open
+
+
+def test_portfolio_sizing_tracks_equity():
+    """每槽名目＝當下淨值÷10：淨值翻倍後，新倉股數也應約翻倍。"""
+    uni = {"TW": [], "US": [{"code": "X", "name": "X"}], "benchmarks": C.load_universe()["benchmarks"]}
+    n = 200
+    c = np.concatenate([np.full(70, 100.0), np.linspace(100, 300, 130)])   # 單邊上漲
+    df = _df(c)
+    df["amount"] = 1e9
+    panel = B.build_panel({("US", "X"): df}, "US", uni)
+    dates = B.market_dates(panel, start="2021-01-04")
+    eq = B.simulate_portfolio(panel, "US", dates, None, use_r2=False, slots=1)
+    assert eq["equity"].iloc[-1] > 1.5          # 單槽滿倉跟著漲，不會被釘在初始名目而稀釀
+    # 對照：若名目釘死初始資金，淨值 2 倍時曝險只剩一半 → 最終淨值會明顯更低
+    e = eq["equity"].to_numpy()
+    assert e[-1] / e[len(e) // 2] > 1.2
+
+
+def test_s4_no_sample_label():
+    import tempfile
+    uni = C.load_universe()
+    small = {"TW": uni["TW"][:6], "US": uni["US"][:6], "benchmarks": uni["benchmarks"]}
+    prices, benches = B.synthetic_prices(small, n_days=200, seed=5)
+    res = B.run(prices, benches, small, Path(tempfile.mkdtemp()) / "r", oos_start="2099-01-01")
+    assert res["S4"]["pass"] is None and res["S4"]["status"] == "無樣本"
+
+
 def test_mask_secret():
     D._TOKEN = "abcdefghijklmnop"
     s = D.mask_secret("GET ...?x=1&token=abcdefghijklmnop&y=2 abcdefghijklmnop")

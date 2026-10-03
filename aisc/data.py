@@ -100,6 +100,21 @@ def normalize(raw: pd.DataFrame, market: str) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def clean(df: pd.DataFrame) -> pd.DataFrame:
+    """資料品質修補（2026-10-03 驗收後加）：
+    ① volume==0 的列整列剔除——那是上游的非交易佔位列（實查 6691 2021-03-10：高低收逐位複製前一日、open 卻是未還原原價 180.37），
+       沒有成交就不可能以該列 open 進場；99 列、集中在前興櫃代號。
+    ② open 落在 [low, high] 之外者夾回區間——定義上 open 必在高低之間（實查 1,704 列、偏離中位數 0.6%），
+       夾回只動 open、不造價；high/low/close 一律不動。"""
+    if df is None or df.empty:
+        return df
+    out = df[~(df["volume"].fillna(0) <= 0)].copy()
+    lo, hi = out["low"], out["high"]
+    ok = lo.notna() & hi.notna()
+    out.loc[ok, "open"] = out.loc[ok, "open"].clip(lower=lo[ok], upper=hi[ok])
+    return out.reset_index(drop=True)
+
+
 def cache_path(market: str, code: str) -> Path:
     return C.PRICE_CACHE_DIR / market / f"{code.replace('^', '_')}.parquet"
 
@@ -110,14 +125,14 @@ def load_prices(market: str, code: str, start: str = C.SAMPLE_START, dataset: st
     p = cache_path(market, code)
     cached = pd.read_parquet(p) if p.exists() else pd.DataFrame()
     if not refresh:
-        return cached
+        return clean(cached)
     fetch = fetch or fm_get
     ds = dataset or C.FM_DATASET[market]
     # 從快取末日重抓（含末日，覆寫以吸收還原價調整的最後一列）
     since = cached["date"].max() if not cached.empty else start
     raw = fetch(ds, code, since)
     if raw is None:
-        return cached
+        return clean(cached)
     new = normalize(raw, market)
     if cached.empty:
         df = new
@@ -125,8 +140,8 @@ def load_prices(market: str, code: str, start: str = C.SAMPLE_START, dataset: st
         df = pd.concat([cached[cached["date"] < since], new]).drop_duplicates("date", keep="last")
         df = df.sort_values("date").reset_index(drop=True)
     p.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(p, index=False)
-    return df
+    df.to_parquet(p, index=False)       # 快取存原始列，清理只在讀出時做（保留上游原貌、規則可改）
+    return clean(df)
 
 
 def load_benchmark(market: str, uni: dict, **kw) -> pd.DataFrame:

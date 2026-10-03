@@ -170,8 +170,9 @@ def simulate_portfolio(panel: dict, market: str, dates: list[str], bench: pd.Dat
                        picks: dict[str, list[str]] | None = None) -> pd.DataFrame:
     """等權槽位組合：每日訊號 → 隔日開盤補滿空槽（依 R1 名次、已持有不加碼）→ 持有 hold 日收盤出場。
     use_r2：訊號日大盤 C<MA60 時不開新倉。stop_pct：收盤跌破進場價 15% 隔日開盤出場。
-    回傳逐日 equity（起點 1.0）。"""
-    capital = C.BT_CAPITAL[market]; per = capital / slots
+    每槽名目＝**當下淨值**（前一收盤的現金＋市值）÷ slots（2026-10-03 驗收後改；原為初始資金÷slots，
+    淨值漲三倍後曝險只剩三成、各年 MDD 的曝險基礎不一致）。回傳逐日 equity（起點 1.0）。"""
+    capital = C.BT_CAPITAL[market]
     r2_off = I.r2_filter(bench) if (use_r2 and bench is not None and not bench.empty) else None
     idx = {code: {d: i for i, d in enumerate(f.index)} for code, f in panel.items()}
     arrays = {code: (f["open"].to_numpy(float), f["close"].to_numpy(float)) for code, f in panel.items()}
@@ -187,6 +188,8 @@ def simulate_portfolio(panel: dict, market: str, dates: list[str], bench: pd.Dat
                 i = idx[code][d]; px = arrays[code][0][i]
                 if np.isfinite(px):
                     cash += _sell_proceeds(px, p["shares"], market); del pos[code]
+        equity_now = cash + sum(p["shares"] * last_close.get(c, p["entry"]) for c, p in pos.items())
+        per = max(equity_now, 0.0) / slots
         for code in pending:
             if len(pos) >= slots or code in pos or d not in idx[code]:
                 continue
@@ -312,8 +315,12 @@ def run(prices: dict, benches: dict, uni: dict, out_dir: Path, markets=("TW", "U
     s4 = claim_rows_signal(oos, "r1_mean", "all_mean", "n_r1"); s4.to_csv(out_dir / "S4.csv", index=False)
     res["S1"] = verdict(s1); res["S2"] = verdict(s2)
     s4all = s4[s4["year"] == "all"]
-    res["S4"] = {"pass": bool(len(s4all) == 3 and s4all["pass"].all()), "n_signal_days": int(len(oos)),
-                 "note": "只看方向；樣本外交易須已完成 60 日才計入"}
+    if len(oos) == 0:
+        res["S4"] = {"pass": None, "status": "無樣本", "n_signal_days": 0,
+                     "note": f"樣本外（{oos_start} 起）尚無任何訊號走完 {C.HOLD_DAYS} 個交易日；不是未通過，是還沒有證據"}
+    else:
+        res["S4"] = {"pass": bool(len(s4all) == 3 and s4all["pass"].all()), "n_signal_days": int(len(oos)),
+                     "note": "只看方向；樣本外交易須已完成 60 日才計入"}
     res["S3"] = _s3(stats, markets); res["S5"] = _s5(ins, stats, markets)
     res["portfolio_stats"] = stats
     (out_dir / "result.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=_j), encoding="utf-8")
@@ -382,7 +389,9 @@ def render_summary(res: dict, s1: pd.DataFrame, s2: pd.DataFrame, s4: pd.DataFra
     L = [f"# v2 回測結果（{res['generated_at']}）", "",
          "模擬研究、含成本、隔日開盤成交；不是投資建議。通過條件：全體／TW／US 皆成立且樣本 ≥ 50 的年份 ≥ 2/3 成立。", ""]
     for k in ("S1", "S2", "S3", "S4"):
-        v = res[k]; L.append(f"- **{k}**：{'✅ 通過' if v.get('pass') else '❌ 未通過'}  "
+        v = res[k]
+        mark = "⚪ 無樣本" if v.get("pass") is None else ("✅ 通過" if v.get("pass") else "❌ 未通過")
+        L.append(f"- **{k}**：{mark}  "
                              + json.dumps({kk: vv for kk, vv in v.items() if kk not in ('rows',)}, ensure_ascii=False, default=_j))
     L += ["", "## S1：R1(ext) 前 10 vs 全體等權（樣本內）", "", _md(s1),
           "", "## S2：R1(ext) vs R1b(r20)（樣本內）", "", _md(s2),
