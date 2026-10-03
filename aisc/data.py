@@ -120,19 +120,22 @@ def cache_path(market: str, code: str) -> Path:
 
 
 def load_prices(market: str, code: str, start: str = C.SAMPLE_START, dataset: str | None = None,
-                refresh: bool = True, fetch: Callable | None = None) -> pd.DataFrame:
-    """讀快取並增量補到最新；fetch 可注入（測試）。refresh=False 只讀快取。"""
+                refresh: bool = True, fetch: Callable | None = None, do_clean: bool = True) -> pd.DataFrame:
+    """讀快取並增量補到最新；fetch 可注入（測試）。refresh=False 只讀快取。
+    do_clean=False 給指數基準用：指數列 volume 為 0 是常態，套 clean() 會把整條基準刪光
+    （2026-10-03 第二次回測實證：^SOX 被清成空表 → R2 濾網對美股完全失效、r21 與 r20 曲線逐位相同）。"""
+    _clean = clean if do_clean else (lambda d: d)
     p = cache_path(market, code)
     cached = pd.read_parquet(p) if p.exists() else pd.DataFrame()
     if not refresh:
-        return clean(cached)
+        return _clean(cached)
     fetch = fetch or fm_get
     ds = dataset or C.FM_DATASET[market]
     # 從快取末日重抓（含末日，覆寫以吸收還原價調整的最後一列）
     since = cached["date"].max() if not cached.empty else start
     raw = fetch(ds, code, since)
     if raw is None:
-        return clean(cached)
+        return _clean(cached)
     new = normalize(raw, market)
     if cached.empty:
         df = new
@@ -141,11 +144,12 @@ def load_prices(market: str, code: str, start: str = C.SAMPLE_START, dataset: st
         df = df.sort_values("date").reset_index(drop=True)
     p.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(p, index=False)       # 快取存原始列，清理只在讀出時做（保留上游原貌、規則可改）
-    return clean(df)
+    return _clean(df)
 
 
 def load_benchmark(market: str, uni: dict, **kw) -> pd.DataFrame:
     b = uni["benchmarks"][market]
+    kw.setdefault("do_clean", False)
     return load_prices(market, b["data_id"], dataset=b["dataset"], **kw)
 
 

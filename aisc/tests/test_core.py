@@ -129,6 +129,23 @@ def test_clean_drops_zero_volume_and_clips_open():
     assert np.isclose(row["close"], 102.0)      # 只動 open
 
 
+def test_benchmark_not_cleaned_by_zero_volume():
+    """指數基準 volume 恆為 0，load_benchmark 不得套 clean()，否則 R2 濾網整條失效。"""
+    import tempfile
+    uni = C.load_universe()
+    raw = pd.DataFrame({"date": ["2026-01-02", "2026-01-05"], "open": [100, 101], "max": [101, 102], "min": [99, 100],
+                        "close": [100.5, 101.5], "Trading_Volume": [0, 0], "Trading_money": [0, 0], "spread": [0, 1],
+                        "Trading_turnover": [0, 0]})
+    old = C.PRICE_CACHE_DIR
+    C.PRICE_CACHE_DIR = Path(tempfile.mkdtemp())
+    try:
+        bench = D.load_benchmark("TW", uni, fetch=lambda *a, **k: raw)
+        stock = D.load_prices("TW", "9999", fetch=lambda *a, **k: raw)
+    finally:
+        C.PRICE_CACHE_DIR = old
+    assert len(bench) == 2 and len(stock) == 0
+
+
 def test_portfolio_sizing_tracks_equity():
     """每槽名目＝當下淨值÷10：淨值翻倍後，新倉股數也應約翻倍。"""
     uni = {"TW": [], "US": [{"code": "X", "name": "X"}], "benchmarks": C.load_universe()["benchmarks"]}
