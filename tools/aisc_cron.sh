@@ -28,8 +28,10 @@ cd "$REPO_DIR"
 if [ -n "$(git status --porcelain)" ]; then log "工作樹不乾淨，拒跑（exit 4）"; git status --short; exit 4; fi
 git fetch origin main && git checkout -q main && git pull --ff-only origin main || { log "pull 失敗（exit 4）"; exit 4; }
 set -a; . "$ENV_FILE"; set +a
+# Python：repo 內有 .venv（Hetzner 系統 Python 受 PEP 668 管理、套件裝在 venv）就用它，否則退回系統 python3
+PY="python3"; [ -x .venv/bin/python ] && PY=".venv/bin/python"
 rc=0
-python3 -m aisc.daily_table $PUSH || rc=$?
+"$PY" -m aisc.daily_table $PUSH || rc=$?
 log "daily_table exit=$rc"
 git add output/aisc/daily
 if git diff --cached --quiet; then log "無變化"; exit "$rc"; fi
