@@ -397,99 +397,99 @@
  "US": [
   {
    "code": "MU",
-   "name": "MU"
+   "name": "美光"
   },
   {
    "code": "CRDO",
-   "name": "CRDO"
+   "name": "Credo"
   },
   {
    "code": "VRT",
-   "name": "VRT"
+   "name": "Vertiv"
   },
   {
    "code": "AVGO",
-   "name": "AVGO"
+   "name": "博通"
   },
   {
    "code": "NVDA",
-   "name": "NVDA"
+   "name": "輝達"
   },
   {
    "code": "COHR",
-   "name": "COHR"
+   "name": "Coherent"
   },
   {
    "code": "ANET",
-   "name": "ANET"
+   "name": "Arista"
   },
   {
    "code": "AMD",
-   "name": "AMD"
+   "name": "超微"
   },
   {
    "code": "TSM",
-   "name": "TSM"
+   "name": "台積電ADR"
   },
   {
    "code": "ASML",
-   "name": "ASML"
+   "name": "艾司摩爾"
   },
   {
    "code": "AMAT",
-   "name": "AMAT"
+   "name": "應用材料"
   },
   {
    "code": "LRCX",
-   "name": "LRCX"
+   "name": "科林研發"
   },
   {
    "code": "KLAC",
-   "name": "KLAC"
+   "name": "科磊"
   },
   {
    "code": "MRVL",
-   "name": "MRVL"
+   "name": "邁威爾"
   },
   {
    "code": "QCOM",
-   "name": "QCOM"
+   "name": "高通"
   },
   {
    "code": "INTC",
-   "name": "INTC"
+   "name": "英特爾"
   },
   {
    "code": "TXN",
-   "name": "TXN"
+   "name": "德州儀器"
   },
   {
    "code": "ADI",
-   "name": "ADI"
+   "name": "亞德諾"
   },
   {
    "code": "ON",
-   "name": "ON"
+   "name": "安森美"
   },
   {
    "code": "MPWR",
-   "name": "MPWR"
+   "name": "MPS"
   },
   {
    "code": "SMCI",
-   "name": "SMCI"
+   "name": "美超微"
   },
   {
    "code": "DELL",
-   "name": "DELL"
+   "name": "戴爾"
   },
   {
    "code": "HPE",
-   "name": "HPE"
+   "name": "慧與"
   },
   {
    "code": "ALAB",
-   "name": "ALAB"
+   "name": "Astera Labs"
   }
  ]
 }
