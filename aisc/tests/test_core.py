@@ -205,9 +205,10 @@ def test_daily_bench_aligned_to_stock_date():
     # 大盤前 80 天穩定 100，多出來的那天暴跌到 1（若誤用，R2 會變成關）
     bench = _bench(stock_dates + [extra], [100.0] * 80 + [1.0])
     snap, meta = T.snapshot_market("TW", small, prices, bench)
-    assert meta["data_date"] == stock_dates[-1]
+    # 先斷言行為（舊版在這裡就會失敗：拿到大盤最後一天、R2 關），再看新欄位
     assert meta["bench_date"] == stock_dates[-1] and meta["bench_close"] == 100.0
-    assert meta["r2_off"] is False and meta["n_stale"] == 0
+    assert meta["r2_off"] is False
+    assert meta["data_date"] == stock_dates[-1] and meta["n_stale"] == 0
     # 指標數值不受影響
     snap2, _ = T.snapshot_market("TW", small, prices, bench.iloc[:80])
     assert snap["ext"].equals(snap2["ext"]) and snap["r1_rank"].equals(snap2["r1_rank"])
