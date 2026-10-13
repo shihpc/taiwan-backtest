@@ -15,6 +15,7 @@ from aisc import data as D  # noqa: E402
 from aisc import indicators as I  # noqa: E402
 from aisc import daily_table as T  # noqa: E402
 from aisc import notify  # noqa: E402
+from aisc import universe_refresh as U  # noqa: E402
 
 
 def _df(closes, start="2021-01-04"):
@@ -26,7 +27,7 @@ def _df(closes, start="2021-01-04"):
 
 
 def test_universe_frozen_117():
-    u = C.load_universe()
+    u = C.load_universe(C.UNIVERSE_V1_PATH)
     assert len(u["TW"]) == 93 and len(u["US"]) == 24
     assert {"6669", "2368", "2345", "2330"} <= {x["code"] for x in u["TW"]}
     assert u["benchmarks"]["US"]["data_id"] == "^SOX"
@@ -187,6 +188,154 @@ def test_daily_snapshot_and_render(tmp_path=None):
     assert meta["r2_off"] in (True, False)
     md = T.render_md(snaps, "2026-10-02"); line = T.render_line(snaps, "2026-10-02")
     assert "待回測" in md and "不下單" in line and len(line) < 4900
+
+
+def _bench(dates, closes):
+    c = np.asarray(closes, float)
+    return pd.DataFrame({"date": list(dates), "open": c, "high": c, "low": c, "close": c,
+                         "volume": 1, "amount": 1.0})
+
+
+def test_daily_bench_aligned_to_stock_date():
+    """大盤比個股多一天（台股 15:30 班的常態）時，R2／MA60 必須取個股資料日那天，不取大盤最新一天。"""
+    uni = C.load_universe()
+    small = {"TW": uni["TW"][:3], "US": [], "benchmarks": uni["benchmarks"]}
+    prices = {("TW", x["code"]): _df(np.linspace(100, 130, 80)) for x in small["TW"]}
+    stock_dates = prices[("TW", small["TW"][0]["code"])]["date"].tolist()
+    extra = (pd.Timestamp(stock_dates[-1]) + pd.offsets.BDay(1)).strftime("%Y-%m-%d")
+    # 大盤前 80 天穩定 100，多出來的那天暴跌到 1（若誤用，R2 會變成關）
+    bench = _bench(stock_dates + [extra], [100.0] * 80 + [1.0])
+    snap, meta = T.snapshot_market("TW", small, prices, bench)
+    # 先斷言行為（舊版在這裡就會失敗：拿到大盤最後一天、R2 關），再看新欄位
+    assert meta["bench_date"] == stock_dates[-1] and meta["bench_close"] == 100.0
+    assert meta["r2_off"] is False
+    assert meta["data_date"] == stock_dates[-1] and meta["n_stale"] == 0
+    # 指標數值不受影響
+    snap2, _ = T.snapshot_market("TW", small, prices, bench.iloc[:80])
+    assert snap["ext"].equals(snap2["ext"]) and snap["r1_rank"].equals(snap2["r1_rank"])
+
+
+def test_daily_dates_per_market_and_stale():
+    uni = C.load_universe()
+    small = {"TW": uni["TW"][:3], "US": uni["US"][:2], "benchmarks": uni["benchmarks"]}
+    prices = {("TW", x["code"]): _df(np.linspace(100, 130, 80)) for x in small["TW"]}
+    prices[("TW", small["TW"][2]["code"])] = _df(np.linspace(100, 130, 79))   # 一檔落後一天
+    prices.update({("US", x["code"]): _df(np.linspace(50, 60, 81)) for x in small["US"]})
+    tw_last = prices[("TW", small["TW"][0]["code"])]["date"].iloc[-1]
+    us_last = prices[("US", small["US"][0]["code"])]["date"].iloc[-1]
+    benches = {m: _bench(pd.bdate_range("2021-01-04", periods=90).strftime("%Y-%m-%d"), [100.0] * 90)
+               for m in ("TW", "US")}
+    snaps = [T.snapshot_market(m, small, prices, benches[m]) for m in ("TW", "US")]
+    tw, us = snaps[0][1], snaps[1][1]
+    assert tw["data_date"] == tw_last and us["data_date"] == us_last and us_last > tw_last
+    assert tw["n_stale"] == 1 and us["n_stale"] == 0
+    assert tw["bench_date"] == tw_last and us["bench_date"] == us_last
+    assert T.asof_date(snaps) == us_last
+    md = T.render_md(snaps, T.asof_date(snaps)); line = T.render_line(snaps, T.asof_date(snaps))
+    assert f"TW {tw_last}｜US {us_last}" in md and f"資料日：{tw_last}（1 檔" in md
+    assert f"■ TW 資料日 {tw_last}（1 檔" in line and f"■ US 資料日 {us_last}" in line
+
+
+def test_daily_empty_bench_and_no_prices():
+    uni = C.load_universe()
+    small = {"TW": uni["TW"][:2], "US": [], "benchmarks": uni["benchmarks"]}
+    empty = _bench([], [])
+    snap, meta = T.snapshot_market("TW", small, {}, empty)
+    assert meta["data_date"] is None and meta["bench_date"] is None and meta["r2_off"] is None
+    assert T.asof_date([(snap, meta)]) is None
+    prices = {("TW", x["code"]): _df(np.linspace(100, 130, 80)) for x in small["TW"]}
+    late = _bench(["2030-01-01"], [100.0])   # 大盤只有比個股晚的日子 → 截完為空
+    _, meta2 = T.snapshot_market("TW", small, prices, late)
+    assert meta2["bench_date"] is None and meta2["r2_off"] is None
+    T.render_md([(snap, meta)], "2026-10-02"); T.render_line([(snap, meta)], "2026-10-02")
+
+
+def _screen(n=93, gen="2026-10-10T22:40:00+08:00", min_feps=20, start=1000):
+    rows = [{"code": str(start + i), "name": f"股{i}"} for i in range(n)]
+    return {"date": "2026-10-10", "generated_at": gen, "min_feps": min_feps, "n": n, "rows": rows}
+
+
+def test_universe_refresh_due_boundaries():
+    import datetime as dt
+    uni = {"frozen_at": "2026-10-02"}
+    assert U.refresh_due(uni, dt.date(2026, 10, 10)) is False          # 10 號：月營收當天，未到期
+    assert U.refresh_due(uni, dt.date(2026, 10, 11)) is True
+    assert U.refresh_due(uni, dt.date(2026, 10, 14)) is True           # 11 號後第一班（逢假日／週末）
+    uni2 = {"frozen_at": "2026-10-02", "tw_refreshed_at": "2026-10-12"}
+    assert U.refresh_due(uni2, dt.date(2026, 10, 31)) is False         # 當月已換過
+    assert U.refresh_due(uni2, dt.date(2026, 11, 10)) is False
+    assert U.refresh_due(uni2, dt.date(2026, 11, 11)) is True          # 跨月
+    assert U.refresh_due({"frozen_at": "2026-10-11"}, dt.date(2026, 10, 20)) is False   # 11 號當天換的算數
+
+
+def test_universe_refresh_guards():
+    import datetime as dt
+    today = dt.date(2026, 10, 12)
+    ok = U.validate_screen(_screen(), today, 93)
+    assert len(ok) == 93 and ok == sorted(ok, key=lambda x: x["code"])
+    bad = {
+        "rows 空": _screen(n=0),
+        "min_feps": _screen(min_feps=15),
+        "月營收前的版本": _screen(gen="2026-10-09T22:40:00+08:00"),
+        "未來": _screen(gen="2026-10-13T01:00:00+08:00"),
+        "殘缺": _screen(n=40),
+        "gen 壞": _screen(gen="nope"),
+    }
+    s = _screen(); s["n"] = 92; bad["n 不符"] = s
+    s = _screen(); s["rows"][3]["code"] = "<x>"; bad["代號格式"] = s
+    s = _screen(); s["rows"][3]["code"] = s["rows"][2]["code"]; bad["重複"] = s
+    s = _screen(); s["rows"][3]["code"] = "2330\n"; bad["代號尾端換行"] = s
+    s = _screen(); s["rows"][3]["name"] = " "; bad["空名稱"] = s
+    for why, sc in bad.items():
+        try:
+            U.validate_screen(sc, today, 93)
+        except U.ScreenRejected:
+            continue
+        raise AssertionError(f"守門沒擋：{why}")
+    # UTC 時戳換算台北：10-09T16:30Z＝台北 10-10 00:30 → 通過
+    assert U.validate_screen(_screen(gen="2026-10-09T16:30:00+00:00"), today, 93)
+    # --force 在 10 號前：下限退到上個月 10 號
+    assert U.validate_screen(_screen(gen="2026-09-20T22:00:00+08:00"), dt.date(2026, 10, 5), 93)
+
+
+def test_universe_refresh_run_writes_and_keeps_us():
+    import datetime as dt
+    import json as _json
+    import tempfile
+    src = C.load_universe(C.UNIVERSE_V1_PATH)
+    path = Path(tempfile.mkdtemp()) / "universe.json"
+    path.write_text(_json.dumps(src, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    keep = src["TW"][:80]
+    sc = {"date": "2026-10-12", "generated_at": "2026-10-12T22:40:00+08:00", "min_feps": 20,
+          "rows": keep + [{"code": "9999", "name": "新股"}]}
+    sc["n"] = len(sc["rows"])
+    # 未到期：不抓、不寫
+    rc, msg = U.run(path, dt.date(2026, 10, 9), fetch=lambda: (_ for _ in ()).throw(AssertionError("不該抓")))
+    assert rc == 0 and "未到期" in msg
+    # dry-run：不寫檔
+    before = path.read_text(encoding="utf-8")
+    rc, _ = U.run(path, dt.date(2026, 10, 13), fetch=lambda: sc, dry_run=True)
+    assert rc == 0 and path.read_text(encoding="utf-8") == before
+    # 抓取失敗與守門不過：rc=5、不寫檔
+    rc, msg = U.run(path, dt.date(2026, 10, 13), fetch=lambda: (_ for _ in ()).throw(OSError("net")))
+    assert rc == 5 and "::warning::" in msg and path.read_text(encoding="utf-8") == before
+    rc, _ = U.run(path, dt.date(2026, 10, 13), fetch=lambda: dict(sc, min_feps=10))
+    assert rc == 5 and path.read_text(encoding="utf-8") == before
+    # 實際換池
+    rc, msg = U.run(path, dt.date(2026, 10, 13), fetch=lambda: sc)
+    u = C.load_universe(path)
+    assert rc == 0 and len(u["TW"]) == 81 and u["tw_refreshed_at"] == "2026-10-13"
+    assert u["US"] == src["US"] and u["benchmarks"] == src["benchmarks"] and u["frozen_at"] == src["frozen_at"]
+    ch = u["changes"][-1]
+    assert ch["added"] == ["9999"] and len(ch["removed"]) == 13 and ch["source"]["date"] == "2026-10-12"
+    assert u["changes"][0] == src["changes"][0]
+    # 同月再跑：未到期
+    rc, msg = U.run(path, dt.date(2026, 10, 20), fetch=lambda: sc)
+    assert rc == 0 and "未到期" in msg
+    # v1 凍結檔不受影響
+    assert len(C.load_universe(C.UNIVERSE_V1_PATH)["TW"]) == 93
+    assert "TW 81 檔（2026-10-13 換池，依 screen 2026-10-12）" in T.pool_line(u)
+    assert "TW 93 檔（2026-10-02 初始凍結）" in T.pool_line(src)
 
 
 def test_line_push_skips_without_env(monkeypatch=None):

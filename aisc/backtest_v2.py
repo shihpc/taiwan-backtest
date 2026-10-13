@@ -443,7 +443,7 @@ def main(argv=None) -> int:
     ap.add_argument("--market", choices=["TW", "US"], action="append")
     ap.add_argument("--out", help="輸出目錄（預設 output/aisc/v2/<時戳>）")
     a = ap.parse_args(argv)
-    uni = C.load_universe()
+    uni = C.load_universe(C.UNIVERSE_V1_PATH)   # v2 回測固定用凍結的 117 檔，候選池浮動不影響可重現性
     markets = tuple(a.market) if a.market else ("TW", "US")
     if a.synthetic:
         prices, benches = synthetic_prices(uni)

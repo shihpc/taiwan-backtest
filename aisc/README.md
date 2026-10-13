@@ -5,7 +5,9 @@
 
 | 模組 | 對應規格 | 說明 |
 |---|---|---|
-| `universe.json` | §2 | 候選池凍結 117 檔（台股 93＝postmkt `screen.json` 2026-10-02 快照、美股 24）＋大盤基準（TAIEX／^SOX）。增減要記 `changes` |
+| `universe.json` | §2 | **現行**候選池：台股每月 11 號起第一班依 postmkt `screen.json` 浮動換池（`universe_refresh.py`）、美股 24 檔凍結；＋大盤基準（TAIEX／^SOX）。每次換池記 `changes`（新增／移除代號與來源版本） |
+| `universe_v1.json` | §2／§8 | 2026-10-02 凍結的 117 檔（台股 93＝當日 `screen.json` 快照、美股 24）。**v2 回測 S1–S5 一律讀它**，候選池浮動不影響結論重現 |
+| `universe_refresh.py` | §2（2026-10-13 使用者裁定浮動） | 到期判定＋來源守門＋整池替換，規則見下方「候選池浮動」 |
 | `config.py` | §3／§4／§5／§8 | 全部門檻常數（MA20/60、ATR14、前 10、R3 門檻、H=60、成本、樣本外切點）。**回測前寫死，要改＝v3** |
 | `data.py` | §2 | FinMind `TaiwanStockPriceAdj`／`USStockPrice` → 統一欄位、逐檔 parquet 增量快取（`data/aisc/prices/`，不進 git）。token 走 `FINMIND_TOKEN`，log 一律遮罩 |
 | `indicators.py` | §3 | 純函式：ext、r5、r20、MA60 上下、slope60、liq20、R2 濾網、R1 排序（同分依代號） |
@@ -14,8 +16,8 @@
 | `ibkr_flex.py` | §6／§9 | IBKR Flex Web Service 唯讀報表（SendRequest→GetStatement），存 `$AISC_PRIVATE_DIR/ibkr`，不進 repo |
 | `fubon_account.py` | §6／§9 | 富邦 `fubon_neo` 唯讀庫存骨架；**SDK 方法名未在真 SDK 上實跑，標 TODO** |
 | `notify.py` | §7 | LINE Messaging API push（`LINE_TOKEN`／`LINE_USER_ID`，與 Worker 同通道） |
-| `tests/test_core.py` | — | 14 項離線測試（免 token）：無前視、成本、停損路徑、排序 tie-break、判定規則、端到端合成資料 |
-| `../tools/aisc_cron.sh` | §9 | Hetzner cron 入口：每日表＋LINE＋commit `output/aisc/daily` |
+| `tests/test_core.py` | — | 24 項離線測試（免 token）：無前視、成本、停損路徑、排序 tie-break、判定規則、端到端合成資料、每日表日期對齊、候選池浮動 |
+| `../tools/aisc_cron.sh` | §9 | Hetzner cron 入口：（到期時）候選池換池＋每日表＋LINE＋commit `output/aisc/daily`（換池時連同 `aisc/universe.json`） |
 
 ## 指令
 
@@ -40,6 +42,16 @@ IBKR_FLEX_TOKEN=… IBKR_FLEX_QUERY_ID=… python3 -m aisc.ibkr_flex
   年份列只供參考，S3 通過＝各市場整段皆通過。
 - **S5**：收盤跌破進場價 15% → 隔日開盤出場；同時給訊號層平均報酬／單筆回撤與組合層 MDD，不當關卡。
 - **樣本外 S4**：訊號日 ≥ 2026-07-09 且交易已完成 60 日者才計入，只看三組方向；一筆都沒完成時標「無樣本」而非「未通過」。
+- **候選池浮動**（2026-10-13 使用者裁定；台股月營收 10 號公布，11 號後換池）：台北今日 ≥ 當月 11 號且上次台股換池日 < 當月 11 號 → 到期；
+  cron 只跑週一~五，11 號逢週末就在之後第一班。到期時抓 postmkt `screen.json`（raw main）整池替換台股、依代號排序。
+  **守門**（任一不過＝不換、保留舊名單、`universe_refresh` 回 5、cron 最終退出碼反映，但不擋每日表，下一班重試）：
+  `rows` 非空、每列代號／名稱合法且不重複、`min_feps`＝20、`n`＝列數、`generated_at` 台北日在「當月 10 號～今日」、
+  列數 ≥ 現有台股檔數 × 0.5（防上游殘缺；0.5 是選定值、非量測）。美股沒有對應來源，維持凍結。
+  **浮動池無法回測**（`screen.json` 沒有 2021 起逐月的時點資料），只能從生效日起前推；v1 凍結池的回測有前視偏誤（用 10-02 才知道的名單回測 2021 起），結論只當上限參考。
+- **每日表日期口徑**（2026-10-13 修正日期混用）：各市場「資料日」＝該市場個股最新 date 的最大值；大盤序列先截到 ≤ 資料日再算 MA60／R2
+  （台股個股用 `TaiwanStockPriceAdj`、台北 15:30 那班常只到前一交易日，TAIEX 卻已有當天值——舊版拿當天大盤配前一天個股）。
+  檔名＝各市場資料日的較晚者（10-12 那班 TW 10-08／US 10-09 → `2026-10-09`），md 標題下與 LINE 逐市場寫明資料日、個股日期落後者列檔數；
+  cron commit 訊息改為「檔名日期 (run 台北執行日)」。**修正前的 `output/aisc/daily/` 舊檔未重產**（本沙箱無 token 無快取）。
 - **資料清理**（`data.clean()`，讀出時套用、快取存原始列）：volume=0 的列整列剔除（上游非交易佔位列，實查 99 列、含 6691 2021-03-10 未還原 open）；open 落在 [low, high] 外者夾回區間（實查 1,704 列、偏離中位數 0.6%，集中在前興櫃代號）。
 
 ## v2 回測結論（2026-10-03，三次實跑，定版＝`output/aisc/v2/20261003_155628/`，commit f40663a）
