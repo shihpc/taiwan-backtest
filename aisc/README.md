@@ -17,7 +17,7 @@
 | `fubon_account.py` | §6／§9 | 富邦 `fubon_neo` 唯讀庫存骨架；**SDK 方法名未在真 SDK 上實跑，標 TODO** |
 | `notify.py` | §7 | LINE Messaging API push（`LINE_TOKEN`／`LINE_USER_ID`，與 Worker 同通道） |
 | `tests/test_core.py` | — | 24 項離線測試（免 token）：無前視、成本、停損路徑、排序 tie-break、判定規則、端到端合成資料、每日表日期對齊、候選池浮動 |
-| `../tools/aisc_cron.sh` | §9 | Hetzner cron 入口：每日表＋LINE＋commit `output/aisc/daily` |
+| `../tools/aisc_cron.sh` | §9 | Hetzner cron 入口：（到期時）候選池換池＋每日表＋LINE＋commit `output/aisc/daily`（換池時連同 `aisc/universe.json`） |
 
 ## 指令
 

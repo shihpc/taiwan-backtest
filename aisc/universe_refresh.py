@@ -31,7 +31,7 @@ from zoneinfo import ZoneInfo
 from . import config as C
 
 TPE = ZoneInfo("Asia/Taipei")
-CODE_RE = re.compile(r"^\d{4}[0-9A-Z]{0,2}$")
+CODE_RE = re.compile(r"\d{4}[0-9A-Z]{0,2}")   # 一律 fullmatch（match＋$ 會放行尾端 \n）
 
 
 class ScreenRejected(Exception):
@@ -88,7 +88,7 @@ def validate_screen(screen, today: dt.date, n_current: int) -> list[dict]:
     out, seen = [], set()
     for r in rows:
         code, name = (r.get("code"), r.get("name")) if isinstance(r, dict) else (None, None)
-        if not (isinstance(code, str) and CODE_RE.match(code) and isinstance(name, str) and name.strip()):
+        if not (isinstance(code, str) and CODE_RE.fullmatch(code) and isinstance(name, str) and name.strip()):
             raise ScreenRejected(f"列格式不合：{str(r)[:80]}")
         if code in seen:
             raise ScreenRejected(f"代號重複：{code}")

@@ -284,6 +284,7 @@ def test_universe_refresh_guards():
     s = _screen(); s["n"] = 92; bad["n 不符"] = s
     s = _screen(); s["rows"][3]["code"] = "<x>"; bad["代號格式"] = s
     s = _screen(); s["rows"][3]["code"] = s["rows"][2]["code"]; bad["重複"] = s
+    s = _screen(); s["rows"][3]["code"] = "2330\n"; bad["代號尾端換行"] = s
     s = _screen(); s["rows"][3]["name"] = " "; bad["空名稱"] = s
     for why, sc in bad.items():
         try:
