@@ -171,7 +171,7 @@
 每日描述表（`output/aisc/daily/`，Hetzner cron `tools/aisc_cron.sh`）、v2 回測 S1–S5（`output/aisc/v2/`）、
 IBKR Flex 與富邦 `fubon_neo` 唯讀帳務（私人報表只放 `$AISC_PRIVATE_DIR`，預設 `~/.aisc`）。
 **沒有任何送單路徑**；R1 排名只是「待回測」的候選排序。`config.py` 的門檻回測前寫死，改＝v3。
-測試 `python3 aisc/tests/test_core.py`（14 項、離線）；`python3 -m aisc.backtest_v2 --synthetic` 為煙霧測試。
+測試 `python3 aisc/tests/test_core.py`（21 項、離線；需 pyarrow）；`python3 -m aisc.backtest_v2 --synthetic` 為煙霧測試。
 
 ## 已知未做／限制（現況，不是待辦清單）
 

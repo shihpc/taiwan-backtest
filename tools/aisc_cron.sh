@@ -38,7 +38,9 @@ if git diff --cached --quiet; then log "無變化"; exit "$rc"; fi
 if [ "$DRY_RUN" = "1" ]; then git diff --cached --name-only; git reset -q -- output/aisc/daily; exit "$rc"; fi
 git config user.name >/dev/null 2>&1 || git config user.name "hetzner-cron"
 git config user.email >/dev/null 2>&1 || git config user.email "hetzner-cron@localhost"
-git commit -q -m "aisc daily table $(TZ=Asia/Taipei date +%F) (hetzner)"
+# commit 訊息帶「本次寫入的檔名日期」＋「台北執行日」，兩者常不同（台股還原價晚一天落地），不可只寫執行日
+FILE_DATES="$(git diff --cached --name-only -- output/aisc/daily | sed -n 's#.*/\([0-9-]\{10\}\)\.\(csv\|md\)$#\1#p' | sort -u | paste -sd, -)"
+git commit -q -m "aisc daily table ${FILE_DATES:-?} (run $(TZ=Asia/Taipei date +%F), hetzner)"
 for i in 1 2 3 4 5; do
   if git pull --rebase origin main && git push origin HEAD:main; then log "已 push"; exit "$rc"; fi
   git rebase --abort 2>/dev/null || true; sleep 4

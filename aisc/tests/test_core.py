@@ -189,6 +189,65 @@ def test_daily_snapshot_and_render(tmp_path=None):
     assert "待回測" in md and "不下單" in line and len(line) < 4900
 
 
+def _bench(dates, closes):
+    c = np.asarray(closes, float)
+    return pd.DataFrame({"date": list(dates), "open": c, "high": c, "low": c, "close": c,
+                         "volume": 1, "amount": 1.0})
+
+
+def test_daily_bench_aligned_to_stock_date():
+    """大盤比個股多一天（台股 15:30 班的常態）時，R2／MA60 必須取個股資料日那天，不取大盤最新一天。"""
+    uni = C.load_universe()
+    small = {"TW": uni["TW"][:3], "US": [], "benchmarks": uni["benchmarks"]}
+    prices = {("TW", x["code"]): _df(np.linspace(100, 130, 80)) for x in small["TW"]}
+    stock_dates = prices[("TW", small["TW"][0]["code"])]["date"].tolist()
+    extra = (pd.Timestamp(stock_dates[-1]) + pd.offsets.BDay(1)).strftime("%Y-%m-%d")
+    # 大盤前 80 天穩定 100，多出來的那天暴跌到 1（若誤用，R2 會變成關）
+    bench = _bench(stock_dates + [extra], [100.0] * 80 + [1.0])
+    snap, meta = T.snapshot_market("TW", small, prices, bench)
+    assert meta["data_date"] == stock_dates[-1]
+    assert meta["bench_date"] == stock_dates[-1] and meta["bench_close"] == 100.0
+    assert meta["r2_off"] is False and meta["n_stale"] == 0
+    # 指標數值不受影響
+    snap2, _ = T.snapshot_market("TW", small, prices, bench.iloc[:80])
+    assert snap["ext"].equals(snap2["ext"]) and snap["r1_rank"].equals(snap2["r1_rank"])
+
+
+def test_daily_dates_per_market_and_stale():
+    uni = C.load_universe()
+    small = {"TW": uni["TW"][:3], "US": uni["US"][:2], "benchmarks": uni["benchmarks"]}
+    prices = {("TW", x["code"]): _df(np.linspace(100, 130, 80)) for x in small["TW"]}
+    prices[("TW", small["TW"][2]["code"])] = _df(np.linspace(100, 130, 79))   # 一檔落後一天
+    prices.update({("US", x["code"]): _df(np.linspace(50, 60, 81)) for x in small["US"]})
+    tw_last = prices[("TW", small["TW"][0]["code"])]["date"].iloc[-1]
+    us_last = prices[("US", small["US"][0]["code"])]["date"].iloc[-1]
+    benches = {m: _bench(pd.bdate_range("2021-01-04", periods=90).strftime("%Y-%m-%d"), [100.0] * 90)
+               for m in ("TW", "US")}
+    snaps = [T.snapshot_market(m, small, prices, benches[m]) for m in ("TW", "US")]
+    tw, us = snaps[0][1], snaps[1][1]
+    assert tw["data_date"] == tw_last and us["data_date"] == us_last and us_last > tw_last
+    assert tw["n_stale"] == 1 and us["n_stale"] == 0
+    assert tw["bench_date"] == tw_last and us["bench_date"] == us_last
+    assert T.asof_date(snaps) == us_last
+    md = T.render_md(snaps, T.asof_date(snaps)); line = T.render_line(snaps, T.asof_date(snaps))
+    assert f"TW {tw_last}｜US {us_last}" in md and f"資料日：{tw_last}（1 檔" in md
+    assert f"■ TW 資料日 {tw_last}（1 檔" in line and f"■ US 資料日 {us_last}" in line
+
+
+def test_daily_empty_bench_and_no_prices():
+    uni = C.load_universe()
+    small = {"TW": uni["TW"][:2], "US": [], "benchmarks": uni["benchmarks"]}
+    empty = _bench([], [])
+    snap, meta = T.snapshot_market("TW", small, {}, empty)
+    assert meta["data_date"] is None and meta["bench_date"] is None and meta["r2_off"] is None
+    assert T.asof_date([(snap, meta)]) is None
+    prices = {("TW", x["code"]): _df(np.linspace(100, 130, 80)) for x in small["TW"]}
+    late = _bench(["2030-01-01"], [100.0])   # 大盤只有比個股晚的日子 → 截完為空
+    _, meta2 = T.snapshot_market("TW", small, prices, late)
+    assert meta2["bench_date"] is None and meta2["r2_off"] is None
+    T.render_md([(snap, meta)], "2026-10-02"); T.render_line([(snap, meta)], "2026-10-02")
+
+
 def test_line_push_skips_without_env(monkeypatch=None):
     import os
     os.environ.pop("LINE_TOKEN", None); os.environ.pop("LINE_USER_ID", None)

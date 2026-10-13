@@ -14,7 +14,7 @@
 | `ibkr_flex.py` | §6／§9 | IBKR Flex Web Service 唯讀報表（SendRequest→GetStatement），存 `$AISC_PRIVATE_DIR/ibkr`，不進 repo |
 | `fubon_account.py` | §6／§9 | 富邦 `fubon_neo` 唯讀庫存骨架；**SDK 方法名未在真 SDK 上實跑，標 TODO** |
 | `notify.py` | §7 | LINE Messaging API push（`LINE_TOKEN`／`LINE_USER_ID`，與 Worker 同通道） |
-| `tests/test_core.py` | — | 14 項離線測試（免 token）：無前視、成本、停損路徑、排序 tie-break、判定規則、端到端合成資料 |
+| `tests/test_core.py` | — | 21 項離線測試（免 token）：無前視、成本、停損路徑、排序 tie-break、判定規則、端到端合成資料、每日表日期對齊 |
 | `../tools/aisc_cron.sh` | §9 | Hetzner cron 入口：每日表＋LINE＋commit `output/aisc/daily` |
 
 ## 指令
@@ -40,6 +40,10 @@ IBKR_FLEX_TOKEN=… IBKR_FLEX_QUERY_ID=… python3 -m aisc.ibkr_flex
   年份列只供參考，S3 通過＝各市場整段皆通過。
 - **S5**：收盤跌破進場價 15% → 隔日開盤出場；同時給訊號層平均報酬／單筆回撤與組合層 MDD，不當關卡。
 - **樣本外 S4**：訊號日 ≥ 2026-07-09 且交易已完成 60 日者才計入，只看三組方向；一筆都沒完成時標「無樣本」而非「未通過」。
+- **每日表日期口徑**（2026-10-13 修正日期混用）：各市場「資料日」＝該市場個股最新 date 的最大值；大盤序列先截到 ≤ 資料日再算 MA60／R2
+  （台股個股用 `TaiwanStockPriceAdj`、台北 15:30 那班常只到前一交易日，TAIEX 卻已有當天值——舊版拿當天大盤配前一天個股）。
+  檔名＝各市場資料日的較晚者（10-12 那班 TW 10-08／US 10-09 → `2026-10-09`），md 標題下與 LINE 逐市場寫明資料日、個股日期落後者列檔數；
+  cron commit 訊息改為「檔名日期 (run 台北執行日)」。**修正前的 `output/aisc/daily/` 舊檔未重產**（本沙箱無 token 無快取）。
 - **資料清理**（`data.clean()`，讀出時套用、快取存原始列）：volume=0 的列整列剔除（上游非交易佔位列，實查 99 列、含 6691 2021-03-10 未還原 open）；open 落在 [low, high] 外者夾回區間（實查 1,704 列、偏離中位數 0.6%，集中在前興櫃代號）。
 
 ## v2 回測結論（2026-10-03，三次實跑，定版＝`output/aisc/v2/20261003_155628/`，commit f40663a）
