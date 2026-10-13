@@ -89,9 +89,22 @@ def stale_note(meta: dict) -> str:
     return f"（{meta['n_stale']} 檔個股日期早於資料日）" if meta.get("n_stale") else ""
 
 
-def render_md(snaps: list[tuple[pd.DataFrame, dict]], asof: str) -> str:
+def pool_line(uni: dict | None) -> str:
+    """候選池版本：台股每月 11 號起換池（universe_refresh），美股凍結。"""
+    if not uni:
+        return ""
+    tw_at = uni.get("tw_refreshed_at") or uni.get("frozen_at")
+    src = next((c.get("source", {}).get("date") for c in reversed(uni.get("changes", [])) if c.get("source")), None)
+    tw = f"TW {len(uni['TW'])} 檔（" + (f"{tw_at} 換池，依 screen {src}" if src else f"{tw_at} 初始凍結") + "）"
+    return f"候選池 {uni.get('version', '—')}：{tw}｜US {len(uni['US'])} 檔（{uni.get('frozen_at')} 凍結）"
+
+
+def render_md(snaps: list[tuple[pd.DataFrame, dict]], asof: str, uni: dict | None = None) -> str:
     L = [f"# AI 供應鏈每日描述表 {asof}", "",
-         f"資料日：{dates_line(snaps)}（檔名取各市場資料日較晚者；大盤與 R2 一律取各市場自己的資料日）", "",
+         f"資料日：{dates_line(snaps)}（檔名取各市場資料日較晚者；大盤與 R2 一律取各市場自己的資料日）", ""]
+    if uni:
+        L += [pool_line(uni), ""]
+    L += [
          "純描述欄位（規格 v2 §3）；R1 排名為候選排序、**待回測、不據此下單**。所有判讀屬 AI 研判，非投資保證。", ""]
     for snap, meta in snaps:
         m = meta["market"]
@@ -114,8 +127,10 @@ def render_md(snaps: list[tuple[pd.DataFrame, dict]], asof: str) -> str:
     return "\n".join(L)
 
 
-def render_line(snaps: list[tuple[pd.DataFrame, dict]], asof: str) -> str:
+def render_line(snaps: list[tuple[pd.DataFrame, dict]], asof: str, uni: dict | None = None) -> str:
     L = [f"【AI供應鏈 每日表 {asof}】描述用，不下單"]
+    if uni:
+        L.append(pool_line(uni))
     for snap, meta in snaps:
         m = meta["market"]
         r2 = "—" if meta["r2_off"] is None else ("R2 關：不開新倉" if meta["r2_off"] else "R2 開")
@@ -148,12 +163,12 @@ def main(argv=None) -> int:
     asof = asof_date(snaps) or dt.date.today().isoformat()
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     pd.concat([s for s, _ in snaps]).to_csv(out / f"{asof}.csv", index=False)
-    (out / f"{asof}.md").write_text(render_md(snaps, asof), encoding="utf-8")
-    print(render_line(snaps, asof))
+    (out / f"{asof}.md").write_text(render_md(snaps, asof, uni), encoding="utf-8")
+    print(render_line(snaps, asof, uni))
     print(f"寫入 {out / (asof + '.csv')}")
     if a.push:
         from . import notify
-        print("LINE push:", notify.push_text(render_line(snaps, asof)))
+        print("LINE push:", notify.push_text(render_line(snaps, asof, uni)))
     return 0
 
 

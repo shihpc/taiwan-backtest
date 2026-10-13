@@ -15,6 +15,7 @@ from aisc import data as D  # noqa: E402
 from aisc import indicators as I  # noqa: E402
 from aisc import daily_table as T  # noqa: E402
 from aisc import notify  # noqa: E402
+from aisc import universe_refresh as U  # noqa: E402
 
 
 def _df(closes, start="2021-01-04"):
@@ -26,7 +27,7 @@ def _df(closes, start="2021-01-04"):
 
 
 def test_universe_frozen_117():
-    u = C.load_universe()
+    u = C.load_universe(C.UNIVERSE_V1_PATH)
     assert len(u["TW"]) == 93 and len(u["US"]) == 24
     assert {"6669", "2368", "2345", "2330"} <= {x["code"] for x in u["TW"]}
     assert u["benchmarks"]["US"]["data_id"] == "^SOX"
@@ -247,6 +248,93 @@ def test_daily_empty_bench_and_no_prices():
     _, meta2 = T.snapshot_market("TW", small, prices, late)
     assert meta2["bench_date"] is None and meta2["r2_off"] is None
     T.render_md([(snap, meta)], "2026-10-02"); T.render_line([(snap, meta)], "2026-10-02")
+
+
+def _screen(n=93, gen="2026-10-10T22:40:00+08:00", min_feps=20, start=1000):
+    rows = [{"code": str(start + i), "name": f"股{i}"} for i in range(n)]
+    return {"date": "2026-10-10", "generated_at": gen, "min_feps": min_feps, "n": n, "rows": rows}
+
+
+def test_universe_refresh_due_boundaries():
+    import datetime as dt
+    uni = {"frozen_at": "2026-10-02"}
+    assert U.refresh_due(uni, dt.date(2026, 10, 10)) is False          # 10 號：月營收當天，未到期
+    assert U.refresh_due(uni, dt.date(2026, 10, 11)) is True
+    assert U.refresh_due(uni, dt.date(2026, 10, 14)) is True           # 11 號後第一班（逢假日／週末）
+    uni2 = {"frozen_at": "2026-10-02", "tw_refreshed_at": "2026-10-12"}
+    assert U.refresh_due(uni2, dt.date(2026, 10, 31)) is False         # 當月已換過
+    assert U.refresh_due(uni2, dt.date(2026, 11, 10)) is False
+    assert U.refresh_due(uni2, dt.date(2026, 11, 11)) is True          # 跨月
+    assert U.refresh_due({"frozen_at": "2026-10-11"}, dt.date(2026, 10, 20)) is False   # 11 號當天換的算數
+
+
+def test_universe_refresh_guards():
+    import datetime as dt
+    today = dt.date(2026, 10, 12)
+    ok = U.validate_screen(_screen(), today, 93)
+    assert len(ok) == 93 and ok == sorted(ok, key=lambda x: x["code"])
+    bad = {
+        "rows 空": _screen(n=0),
+        "min_feps": _screen(min_feps=15),
+        "月營收前的版本": _screen(gen="2026-10-09T22:40:00+08:00"),
+        "未來": _screen(gen="2026-10-13T01:00:00+08:00"),
+        "殘缺": _screen(n=40),
+        "gen 壞": _screen(gen="nope"),
+    }
+    s = _screen(); s["n"] = 92; bad["n 不符"] = s
+    s = _screen(); s["rows"][3]["code"] = "<x>"; bad["代號格式"] = s
+    s = _screen(); s["rows"][3]["code"] = s["rows"][2]["code"]; bad["重複"] = s
+    s = _screen(); s["rows"][3]["name"] = " "; bad["空名稱"] = s
+    for why, sc in bad.items():
+        try:
+            U.validate_screen(sc, today, 93)
+        except U.ScreenRejected:
+            continue
+        raise AssertionError(f"守門沒擋：{why}")
+    # UTC 時戳換算台北：10-09T16:30Z＝台北 10-10 00:30 → 通過
+    assert U.validate_screen(_screen(gen="2026-10-09T16:30:00+00:00"), today, 93)
+    # --force 在 10 號前：下限退到上個月 10 號
+    assert U.validate_screen(_screen(gen="2026-09-20T22:00:00+08:00"), dt.date(2026, 10, 5), 93)
+
+
+def test_universe_refresh_run_writes_and_keeps_us():
+    import datetime as dt
+    import json as _json
+    import tempfile
+    src = C.load_universe(C.UNIVERSE_V1_PATH)
+    path = Path(tempfile.mkdtemp()) / "universe.json"
+    path.write_text(_json.dumps(src, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    keep = src["TW"][:80]
+    sc = {"date": "2026-10-12", "generated_at": "2026-10-12T22:40:00+08:00", "min_feps": 20,
+          "rows": keep + [{"code": "9999", "name": "新股"}]}
+    sc["n"] = len(sc["rows"])
+    # 未到期：不抓、不寫
+    rc, msg = U.run(path, dt.date(2026, 10, 9), fetch=lambda: (_ for _ in ()).throw(AssertionError("不該抓")))
+    assert rc == 0 and "未到期" in msg
+    # dry-run：不寫檔
+    before = path.read_text(encoding="utf-8")
+    rc, _ = U.run(path, dt.date(2026, 10, 13), fetch=lambda: sc, dry_run=True)
+    assert rc == 0 and path.read_text(encoding="utf-8") == before
+    # 抓取失敗與守門不過：rc=5、不寫檔
+    rc, msg = U.run(path, dt.date(2026, 10, 13), fetch=lambda: (_ for _ in ()).throw(OSError("net")))
+    assert rc == 5 and "::warning::" in msg and path.read_text(encoding="utf-8") == before
+    rc, _ = U.run(path, dt.date(2026, 10, 13), fetch=lambda: dict(sc, min_feps=10))
+    assert rc == 5 and path.read_text(encoding="utf-8") == before
+    # 實際換池
+    rc, msg = U.run(path, dt.date(2026, 10, 13), fetch=lambda: sc)
+    u = C.load_universe(path)
+    assert rc == 0 and len(u["TW"]) == 81 and u["tw_refreshed_at"] == "2026-10-13"
+    assert u["US"] == src["US"] and u["benchmarks"] == src["benchmarks"] and u["frozen_at"] == src["frozen_at"]
+    ch = u["changes"][-1]
+    assert ch["added"] == ["9999"] and len(ch["removed"]) == 13 and ch["source"]["date"] == "2026-10-12"
+    assert u["changes"][0] == src["changes"][0]
+    # 同月再跑：未到期
+    rc, msg = U.run(path, dt.date(2026, 10, 20), fetch=lambda: sc)
+    assert rc == 0 and "未到期" in msg
+    # v1 凍結檔不受影響
+    assert len(C.load_universe(C.UNIVERSE_V1_PATH)["TW"]) == 93
+    assert "TW 81 檔（2026-10-13 換池，依 screen 2026-10-12）" in T.pool_line(u)
+    assert "TW 93 檔（2026-10-02 初始凍結）" in T.pool_line(src)
 
 
 def test_line_push_skips_without_env(monkeypatch=None):

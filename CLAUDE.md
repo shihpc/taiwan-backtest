@@ -167,11 +167,12 @@
 ## AI 供應鏈選股與下單系統 `aisc/`（2026-10-02 新增，Phase 0）
 
 規格正本＝Claude Docs「AI 供應鏈選股與下單系統規格 v2」；程式說明與實作口徑見 `aisc/README.md`。
-範圍只到 Phase 0：候選池凍結（`aisc/universe.json`，117 檔）、FinMind 還原價快取（`data/aisc/prices/` 不進 git）、
+範圍只到 Phase 0：候選池（`aisc/universe.json`；**台股每月 11 號起第一班依 postmkt `screen.json` 浮動換池**，2026-10-13 使用者裁定，
+`aisc/universe_refresh.py`；美股 24 檔凍結；v2 回測固定讀凍結的 `aisc/universe_v1.json` 117 檔）、FinMind 還原價快取（`data/aisc/prices/` 不進 git）、
 每日描述表（`output/aisc/daily/`，Hetzner cron `tools/aisc_cron.sh`）、v2 回測 S1–S5（`output/aisc/v2/`）、
 IBKR Flex 與富邦 `fubon_neo` 唯讀帳務（私人報表只放 `$AISC_PRIVATE_DIR`，預設 `~/.aisc`）。
 **沒有任何送單路徑**；R1 排名只是「待回測」的候選排序。`config.py` 的門檻回測前寫死，改＝v3。
-測試 `python3 aisc/tests/test_core.py`（21 項、離線；需 pyarrow）；`python3 -m aisc.backtest_v2 --synthetic` 為煙霧測試。
+測試 `python3 aisc/tests/test_core.py`（24 項、離線；需 pyarrow）；`python3 -m aisc.backtest_v2 --synthetic` 為煙霧測試。
 
 ## 已知未做／限制（現況，不是待辦清單）
 

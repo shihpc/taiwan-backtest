@@ -8,7 +8,8 @@ from pathlib import Path
 
 PKG_DIR = Path(__file__).resolve().parent
 REPO_DIR = PKG_DIR.parent
-UNIVERSE_PATH = PKG_DIR / "universe.json"
+UNIVERSE_PATH = PKG_DIR / "universe.json"              # 現行候選池（台股每月 11 號起第一班浮動，見 universe_refresh.py）
+UNIVERSE_V1_PATH = PKG_DIR / "universe_v1.json"        # 2026-10-02 凍結的 117 檔：v2 回測（S1–S5）一律讀它，結論才可重現
 PRICE_CACHE_DIR = REPO_DIR / "data" / "aisc" / "prices"      # 不進 git（data/aisc/.gitignore）
 OUTPUT_DIR = REPO_DIR / "output" / "aisc"                    # 每日表與回測報告（進 git）
 # 私人帳務（IBKR Flex 報表、券商庫存）一律放 repo 外；預設 ~/.aisc，可用環境變數覆寫
@@ -38,6 +39,14 @@ US_FEE_MIN = 1.0
 BT_CAPITAL = {"TW": 10_000_000.0, "US": 300_000.0}
 MIN_YEAR_SAMPLES = 50               # 年份切片納入通過條件的最低樣本數
 YEAR_PASS_FRAC = 2 / 3
+
+# ---- 候選池浮動（使用者 2026-10-13 裁定）：台股每月 11 號（月營收 10 號公布之後）起第一班，
+# 以 postmkt screen.json（明年預估 EPS ≥ 20 初篩）整池替換；美股 24 檔無對應來源、維持凍結 ----
+SCREEN_URL = "https://raw.githubusercontent.com/shihpc/postmkt/main/data/screen/screen.json"
+REFRESH_DAY = 11                    # 當月 11 號起到期
+SCREEN_MIN_GEN_DAY = 10             # screen.json 的 generated_at（台北）須 ≥ 當月 10 號，才算月營收公布後的版本
+SCREEN_MIN_FEPS = 20                # 初篩門檻須與 v1 凍結時相同，不同就拒收
+REFRESH_MIN_FRAC = 0.5              # 新名單檔數 < 現有台股檔數 × 0.5 視為上游殘缺、拒收（選定值，非量測）
 
 # ---- FinMind 資料集 ----
 FM_API = "https://api.finmindtrade.com/api/v4/data"

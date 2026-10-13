@@ -1,7 +1,7 @@
 {
  "version": "v1-117",
  "frozen_at": "2026-10-02",
- "note": "候選池凍結於規格 v2 §2：台股 93 檔＋美股 24 檔＝117。台股清單取自 postmkt data/screen/screen.json（date 2026-10-02、min_feps 20、n 93，commit c612afd），含規格點名的緯穎／金像電／智邦／台積電／奇鋐／台光電；是否與 v1 回測的 93 檔逐檔相同待使用者確認。候選池增減須記錄日期與理由（§2）。",
+ "note": "現行候選池（2026-10-13 使用者裁定浮動）：台股每月 11 號起第一班依 postmkt data/screen/screen.json（明年預估 EPS ≥ 20 初篩）整池替換，由 aisc/universe_refresh.py 執行、每次換池記入 changes；美股 24 檔維持 2026-10-02 凍結。2026-10-02 的凍結 117 檔另存 universe_v1.json，v2 回測讀它。",
  "changes": [
   {
    "date": "2026-10-02",
