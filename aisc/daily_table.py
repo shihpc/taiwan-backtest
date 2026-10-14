@@ -162,7 +162,10 @@ def main(argv=None) -> int:
         snaps.append(snapshot_market(m, uni, prices, bench))
     asof = asof_date(snaps) or dt.date.today().isoformat()
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
-    pd.concat([s for s, _ in snaps]).to_csv(out / f"{asof}.csv", index=False)
+    table = pd.concat([s for s, _ in snaps])
+    table.to_csv(out / f"{asof}.csv", index=False)
+    # 固定檔名的最新一份：postmkt「選股二」tab 以同源相對路徑讀它（不必猜檔名日期）
+    table.to_csv(out / "latest.csv", index=False)
     (out / f"{asof}.md").write_text(render_md(snaps, asof, uni), encoding="utf-8")
     print(render_line(snaps, asof, uni))
     print(f"寫入 {out / (asof + '.csv')}")
