@@ -11,12 +11,12 @@
 | `config.py` | §3／§4／§5／§8 | 全部門檻常數（MA20/60、ATR14、前 10、R3 門檻、H=60、成本、樣本外切點）。**回測前寫死，要改＝v3** |
 | `data.py` | §2 | FinMind `TaiwanStockPriceAdj`／`USStockPrice` → 統一欄位、逐檔 parquet 增量快取（`data/aisc/prices/`，不進 git）。token 走 `FINMIND_TOKEN`，log 一律遮罩 |
 | `indicators.py` | §3 | 純函式：ext、r5、r20、MA60 上下、slope60、liq20、R2 濾網、R1 排序（同分依代號） |
-| `daily_table.py` | §3 末段、§9 Phase 0 | 每日描述表 → `output/aisc/daily/<date>.{csv,md}`，`--push` 推 LINE。R1 名單只標「待回測」 |
+| `daily_table.py` | §3 末段、§9 Phase 0 | 每日描述表 → `output/aisc/daily/<date>.{csv,md}`＋固定檔名 `latest.csv`（與當次 `<date>.csv` 逐位相同），`--push` 推 LINE。R1 名單只標「待回測」。**`latest.csv` 與 `universe.json` 由 postmkt「選股二」tab 以同源相對路徑讀取：欄位改名或改語意＝跨站變更** |
 | `backtest_v2.py` | §8 | S1–S5：訊號層（隔日開盤進、60 日收盤出、含成本）＋組合層（10 槽等權、R2 有無、停損對照）；判定三組＋年份 2/3；輸出 `output/aisc/v2/<run>/`（`trades_*.csv` 為可重算的原始明細） |
 | `ibkr_flex.py` | §6／§9 | IBKR Flex Web Service 唯讀報表（SendRequest→GetStatement），存 `$AISC_PRIVATE_DIR/ibkr`，不進 repo |
 | `fubon_account.py` | §6／§9 | 富邦 `fubon_neo` 唯讀庫存骨架；**SDK 方法名未在真 SDK 上實跑，標 TODO** |
 | `notify.py` | §7 | LINE Messaging API push（`LINE_TOKEN`／`LINE_USER_ID`，與 Worker 同通道） |
-| `tests/test_core.py` | — | 24 項離線測試（免 token）：無前視、成本、停損路徑、排序 tie-break、判定規則、端到端合成資料、每日表日期對齊、候選池浮動 |
+| `tests/test_core.py` | — | 25 項離線測試（免 token）：無前視、成本、停損路徑、排序 tie-break、判定規則、端到端合成資料、每日表日期對齊、候選池浮動、latest.csv |
 | `../tools/aisc_cron.sh` | §9 | Hetzner cron 入口：（到期時）候選池換池＋每日表＋LINE＋commit `output/aisc/daily`（換池時連同 `aisc/universe.json`） |
 
 ## 指令

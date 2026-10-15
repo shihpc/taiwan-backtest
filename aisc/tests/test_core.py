@@ -338,6 +338,26 @@ def test_universe_refresh_run_writes_and_keeps_us():
     assert "TW 93 檔（2026-10-02 初始凍結）" in T.pool_line(src)
 
 
+def test_daily_main_writes_latest_csv():
+    import tempfile
+    uni = C.load_universe()
+    small = {"TW": uni["TW"][:3], "US": uni["US"][:2], "benchmarks": uni["benchmarks"]}
+    prices = {("TW", x["code"]): _df(np.linspace(100, 130, 80)) for x in small["TW"]}
+    prices.update({("US", x["code"]): _df(np.linspace(50, 60, 80)) for x in small["US"]})
+    bench = _bench(pd.bdate_range("2021-01-04", periods=80).strftime("%Y-%m-%d"), [100.0] * 80)
+    orig = (C.load_universe, D.load_all, D.load_benchmark)
+    try:
+        C.load_universe = lambda *a, **k: small
+        D.load_all = lambda uni, markets, **k: {k2: v for k2, v in prices.items() if k2[0] in markets}
+        D.load_benchmark = lambda m, uni, **k: bench
+        out = Path(tempfile.mkdtemp())
+        assert T.main(["--offline", "--out", str(out)]) == 0
+    finally:
+        C.load_universe, D.load_all, D.load_benchmark = orig
+    dated = [p for p in out.glob("*.csv") if p.name != "latest.csv"]
+    assert len(dated) == 1 and (out / "latest.csv").read_bytes() == dated[0].read_bytes()
+
+
 def test_line_push_skips_without_env(monkeypatch=None):
     import os
     os.environ.pop("LINE_TOKEN", None); os.environ.pop("LINE_USER_ID", None)
