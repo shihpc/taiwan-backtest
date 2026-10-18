@@ -34,8 +34,11 @@ cd "$REPO_DIR"
 if [ -n "$(git status --porcelain)" ]; then log "工作樹不乾淨，拒跑（exit 4）"; git status --short; exit 4; fi
 git fetch origin main && git checkout -q main && git pull --ff-only origin main || { log "pull 失敗（exit 4）"; exit 4; }
 if [ -z "${AISC_CRON_REEXEC:-}" ] && [ "$(sha256sum "$SELF" | cut -d' ' -f1)" != "$SELF_SHA" ]; then
-  log "腳本已隨 pull 更新，以新版重跑一次"
-  exec env AISC_CRON_REEXEC=1 bash "$SELF" "$@"
+  if bash -n "$SELF"; then
+    log "腳本已隨 pull 更新，以新版重跑一次"
+    exec env AISC_CRON_REEXEC=1 bash "$SELF" "$@"
+  fi
+  log "::warning::新版腳本語法檢查失敗，本班沿用舊流程跑完"
 fi
 set -a; . "$ENV_FILE"; set +a
 # Python：repo 內有 .venv（Hetzner 系統 Python 受 PEP 668 管理、套件裝在 venv）就用它，否則退回系統 python3
