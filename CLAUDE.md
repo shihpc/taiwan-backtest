@@ -188,7 +188,7 @@ IBKR Flex 與富邦 `fubon_neo` 唯讀帳務（私人報表只放 `$AISC_PRIVATE
   `taiwan-flow-live-v2/docs/holiday-calendar.md`），假日印「<date> 國定假日（<名稱>），跳過」、exit 0、
   不記帳（與週末同一條路）。**fail-open**：讀不到／壞檔／schema 不是整數 1／年度不在 `years` →
   印 `::warning::` 後照舊只排週末（假日會像以前一樣：空手桶記一列、非空手桶因抓不到 tick 不記）。
-  2026-09-25（中秋）三份帳冊原已記的「空手、0 損益」列已刪（`ledger_v3_nostop.csv` 本無該列）。
+  2026-09-25（中秋）三份帳冊原已記的「空手、0 損益」列已刪（`ledger_v3_nostop.csv` 本無該列）。**2026-10-23（薔琵颱風臨時停市，行事曆事後才補）同型假列亦已刪**（使用者 2026-10-25 裁定；三份帳冊各 1 列，末列 `cum_pnl` 不變）。
   **前端 `ledgerStatus` 2026-09-29（家族批次二，規格 `taiwan-flow-live-v2/docs/holiday-calendar.md` §5b）起亦接行事曆**：
   `index.html` 以同源相對路徑 `../taiwan-flow-live-v2/data/twse_holidays.json` 非阻塞讀取（`holLoad`，CSP
   `connect-src 'self'` 已涵蓋、未改），帳冊與行事曆都到後若行事曆成功才重繪頂列一次。`refDay` 為休市日時**比照週末分支**
